@@ -7,6 +7,8 @@
 body {
     overflow: hidden;
     background-color: #362F4F;
+    /* Handle iPhone notches and safe areas */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #game-container {

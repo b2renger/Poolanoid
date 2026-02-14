@@ -57,6 +57,7 @@ class PoolGame {
         this.aimEnd = new THREE.Vector3();
         this.maxImpulse = 50;  // Fixed max power
         this.impulseMultiplier = 4;  // Increased shot power
+        this.activeTouchId = null;  // Track the active touch for aiming
 
         // Store walls for cleanup; fadingWalls = hit walls whose mesh is still fading out
         this.walls = [];
@@ -95,10 +96,13 @@ class PoolGame {
         // Create game info container
         const infoContainer = document.createElement('div');
         infoContainer.style.position = 'absolute';
-        infoContainer.style.top = '20px';
-        infoContainer.style.right = '20px';
+        infoContainer.style.top = 'calc(20px + env(safe-area-inset-top))';
+        infoContainer.style.right = 'calc(20px + env(safe-area-inset-right))';
         infoContainer.style.color = '#E4FF30';
-        infoContainer.style.fontSize = '24px';
+
+        // Responsive font sizing (min 18px, max 28px)
+        const baseFontSize = Math.min(28, Math.max(18, window.innerWidth / 30));
+        infoContainer.style.fontSize = `${baseFontSize}px`;
         infoContainer.style.fontFamily = 'Arial, sans-serif';
         infoContainer.style.textAlign = 'right';
         
@@ -300,23 +304,75 @@ class PoolGame {
 
     setupMouseEvents() {
         const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
+        const inputPos = new THREE.Vector2();
 
-        const onMouseDown = (event) => {
+        // Unified input position extractor for mouse and touch
+        const getInputPosition = (event) => {
+            if (event.touches && event.touches.length > 0) {
+                // Touch event - use first touch or active touch
+                let touch = event.touches[0];
+
+                // If we have an active touch ID, find that specific touch
+                if (this.activeTouchId !== null) {
+                    for (let i = 0; i < event.touches.length; i++) {
+                        if (event.touches[i].identifier === this.activeTouchId) {
+                            touch = event.touches[i];
+                            break;
+                        }
+                    }
+                }
+
+                return {
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    touchId: touch.identifier
+                };
+            } else if (event.changedTouches && event.changedTouches.length > 0) {
+                // Touch end event - use changedTouches
+                const touch = event.changedTouches[0];
+                return {
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    touchId: touch.identifier
+                };
+            } else {
+                // Mouse event
+                return {
+                    x: event.clientX,
+                    y: event.clientY,
+                    touchId: null
+                };
+            }
+        };
+
+        const onInputStart = (event) => {
             if (this.isGameOver || this.shotsRemaining <= 0) return;
-            
-            // Calculate mouse position in normalized device coordinates
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-            // Update the picking ray with the camera and mouse position
-            raycaster.setFromCamera(mouse, this.camera);
+            // Prevent default touch behavior (scrolling, zooming)
+            if (event.type === 'touchstart') {
+                event.preventDefault();
+            }
+
+            const pos = getInputPosition(event);
+
+            // For touch, only start aiming if no touch is active
+            if (pos.touchId !== null && this.activeTouchId !== null) {
+                return; // Already aiming with another touch
+            }
+
+            // Calculate input position in normalized device coordinates
+            inputPos.x = (pos.x / window.innerWidth) * 2 - 1;
+            inputPos.y = -(pos.y / window.innerHeight) * 2 + 1;
+
+            // Update the picking ray with the camera and input position
+            raycaster.setFromCamera(inputPos, this.camera);
 
             // Calculate objects intersecting the picking ray
             const intersects = raycaster.intersectObject(this.ballMesh);
 
             if (intersects.length > 0) {
                 this.isAiming = true;
+                this.activeTouchId = pos.touchId; // Store touch ID (null for mouse)
                 this.aimStart.copy(this.ballMesh.position);
                 this.aimEnd.copy(this.aimStart);
                 this.aimingLine.visible = true;
@@ -324,18 +380,30 @@ class PoolGame {
             }
         };
 
-        const onMouseMove = (event) => {
+        const onInputMove = (event) => {
             if (!this.isAiming) return;
 
-            // Calculate mouse position in normalized device coordinates
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // Prevent default touch behavior
+            if (event.type === 'touchmove') {
+                event.preventDefault();
+            }
+
+            const pos = getInputPosition(event);
+
+            // For touch, only process if it's the active touch
+            if (this.activeTouchId !== null && pos.touchId !== this.activeTouchId) {
+                return;
+            }
+
+            // Calculate input position in normalized device coordinates
+            inputPos.x = (pos.x / window.innerWidth) * 2 - 1;
+            inputPos.y = -(pos.y / window.innerHeight) * 2 + 1;
 
             // Create a plane at the ball's height
             const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.ballMesh.position.y);
-            
+
             // Update the picking ray
-            raycaster.setFromCamera(mouse, this.camera);
+            raycaster.setFromCamera(inputPos, this.camera);
 
             // Find intersection with the plane
             const intersection = new THREE.Vector3();
@@ -355,8 +423,16 @@ class PoolGame {
             this.aimingLine.geometry = lineGeometry;
         };
 
-        const onMouseUp = () => {
+        const onInputEnd = (event) => {
             if (!this.isAiming) return;
+
+            // For touch events, check if it's the active touch ending
+            if (event.type === 'touchend' || event.type === 'touchcancel') {
+                const pos = getInputPosition(event);
+                if (this.activeTouchId !== null && pos.touchId !== this.activeTouchId) {
+                    return; // Different touch ended, not the aiming one
+                }
+            }
 
             // Decrease shots remaining
             this.shotsRemaining--;
@@ -366,7 +442,7 @@ class PoolGame {
             const direction = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd);
             const distance = direction.length();
             const impulse = Math.min(distance * this.impulseMultiplier, this.maxImpulse);
-            
+
             direction.normalize();
             this.ballBody.wakeUp();
             this.ballBody.applyImpulse(
@@ -376,6 +452,7 @@ class PoolGame {
 
             // Reset aiming state
             this.isAiming = false;
+            this.activeTouchId = null;
             this.aimingLine.visible = false;
             this.controls.enabled = true;  // allow rotation again
 
@@ -385,10 +462,16 @@ class PoolGame {
             }
         };
 
-        // Add event listeners
-        window.addEventListener('mousedown', onMouseDown);
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
+        // Add mouse event listeners
+        window.addEventListener('mousedown', onInputStart);
+        window.addEventListener('mousemove', onInputMove);
+        window.addEventListener('mouseup', onInputEnd);
+
+        // Add touch event listeners with passive: false to allow preventDefault
+        window.addEventListener('touchstart', onInputStart, { passive: false });
+        window.addEventListener('touchmove', onInputMove, { passive: false });
+        window.addEventListener('touchend', onInputEnd);
+        window.addEventListener('touchcancel', onInputEnd);
     }
 
     onWindowResize() {
@@ -699,23 +782,25 @@ class PoolGame {
         gameOverDiv.style.padding = '20px';
         gameOverDiv.style.borderRadius = '10px';
         
-        // Add game over text
+        // Add game over text with responsive sizing
         const gameOverText = document.createElement('div');
-        gameOverText.style.fontSize = '48px';
+        gameOverText.style.fontSize = 'clamp(32px, 8vw, 48px)';
         gameOverText.style.marginBottom = '20px';
         gameOverText.textContent = 'Game Over!';
-        
-        // Add level reached text
+
+        // Add level reached text with responsive sizing
         const levelText = document.createElement('div');
-        levelText.style.fontSize = '24px';
+        levelText.style.fontSize = 'clamp(18px, 4vw, 24px)';
         levelText.style.marginBottom = '30px';
         levelText.textContent = `Level reached: ${this.level}`;
-        
-        // Create restart button
+
+        // Create restart button with responsive sizing and minimum touch target
         const restartButton = document.createElement('button');
         restartButton.textContent = 'Restart Game';
-        restartButton.style.fontSize = '20px';
-        restartButton.style.padding = '10px 20px';
+        restartButton.style.fontSize = 'clamp(16px, 3vw, 20px)';
+        restartButton.style.padding = 'max(10px, 2vh) max(20px, 4vw)';
+        restartButton.style.minWidth = '44px';  // Minimum touch target
+        restartButton.style.minHeight = '44px';
         restartButton.style.backgroundColor = '#008BFF';
         restartButton.style.color = '#362F4F';
         restartButton.style.border = 'none';
