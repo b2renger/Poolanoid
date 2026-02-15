@@ -3,7 +3,7 @@ export const CONFIG = {
     GAME: {
         BASE_WALL_COUNT: 10,
         WALLS_PER_LEVEL: 5,
-        BASE_SHOTS: 7,
+        BASE_SHOTS: 6,
         EXTRA_SHOTS_PER_LEVEL: 0
     },
 
@@ -160,7 +160,7 @@ export const CONFIG = {
                 { threshold: 0.15, type: 'extraBounce' },  // 15%
                 { threshold: 0.30, type: 'lowBounce' },    // 15%
                 { threshold: 0.45, type: 'sticky' },       // 15%
-                { threshold: 0.55, type: 'bomb' },         // 10%
+                { threshold: 0.50, type: 'bomb' },         // 5%
                 { threshold: 1.00, type: 'normal' },       // 45%
             ]
         },
@@ -171,8 +171,8 @@ export const CONFIG = {
                 { threshold: 0.30, type: 'lowBounce' },    // 15%
                 { threshold: 0.42, type: 'sticky' },       // 12%
                 { threshold: 0.50, type: 'extraShot' },    //  8%
-                { threshold: 0.58, type: 'bomb' },         //  8%
-                { threshold: 0.62, type: 'multiBall' },    //  4%
+                { threshold: 0.54, type: 'bomb' },         //  4%
+                { threshold: 0.58, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
             ]
         },
@@ -181,10 +181,10 @@ export const CONFIG = {
             types: [
                 { threshold: 0.12, type: 'extraBounce' },  // 12%
                 { threshold: 0.24, type: 'lowBounce' },    // 12%
-                { threshold: 0.32, type: 'sticky' },       //  8%
-                { threshold: 0.38, type: 'extraShot' },    //  6%
-                { threshold: 0.44, type: 'bomb' },         //  6%
-                { threshold: 0.48, type: 'multiBall' },    //  4%
+                { threshold: 0.36, type: 'sticky' },       //  8%
+                { threshold: 0.46, type: 'extraShot' },    //  6%
+                { threshold: 0.49, type: 'bomb' },         //  6%
+                { threshold: 0.52, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
@@ -300,7 +300,7 @@ export const CONFIG = {
 
     // Particles (wall-break bursts)
     PARTICLES: {
-        COUNT: 14,
+        COUNT: 7,
         BOMB_COUNT: 30,
         SPEED_MIN: 1.0,
         SPEED_MAX: 3.0,
