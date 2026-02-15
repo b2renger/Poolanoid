@@ -581,575 +581,144 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 ## Phase 3: Game Features & Polish 🎮
 
 **Priority:** MEDIUM - Enhances player experience
-**Estimated Effort:** 10-14 hours
+**Estimated Effort:** 12-16 hours
 **Status:** NOT STARTED
 
-### Task 3.1: Sound Effects System
+### Task 3.1: Local Storage & High Scores
 
-**Files:** New `audio/` directory, new `AudioManager.js`
+**Files:** New `src/storage/StorageManager.js`, modify `src/core/PoolGame.js`
 
 **Implementation Details:**
 
-1. **Sound effect library**
+1. **Create StorageManager** — Handles all localStorage operations with graceful fallbacks.
+   - `saveHighScore(level)` — Saves level reached with timestamp, keeps top 10 sorted by level descending
+   - `getHighScore()` — Returns the best entry (highest level)
+   - `getAllHighScores()` — Returns full top-10 list
+   - `saveSettings(settings)` / `getSettings()` — Persists user preferences (sound, orientation)
+   - Try-catch around all localStorage calls (private browsing, quota)
 
-   Options:
-   - **Howler.js** (recommended): Full-featured, 20KB
-   - **Tone.js**: More complex, music-focused
-   - **Native Web Audio API**: Lightweight but more complex
-
-   **Recommendation:** Use Howler.js
-
-2. **Create AudioManager class**
-
-   **New File:** `src/audio/AudioManager.js`
-   ```javascript
-   import { Howl } from 'howler';
-
-   export class AudioManager {
-       constructor() {
-           this.enabled = true;
-           this.volume = 0.7;
-           this.sounds = {};
-
-           this.loadSounds();
-       }
-
-       loadSounds() {
-           this.sounds = {
-               ballHitWall: new Howl({
-                   src: ['assets/sounds/hit-wall.mp3'],
-                   volume: 0.6,
-                   rate: 1.0
-               }),
-               ballHitCushion: new Howl({
-                   src: ['assets/sounds/hit-cushion.mp3'],
-                   volume: 0.5
-               }),
-               wallBreak: new Howl({
-                   src: ['assets/sounds/wall-break.mp3'],
-                   volume: 0.7,
-                   sprite: {
-                       mint: [0, 200],
-                       lime: [200, 200],
-                       magenta: [400, 200]
-                   }
-               }),
-               shoot: new Howl({
-                   src: ['assets/sounds/shoot.mp3'],
-                   volume: 0.5
-               }),
-               levelComplete: new Howl({
-                   src: ['assets/sounds/level-complete.mp3'],
-                   volume: 0.8
-               }),
-               gameOver: new Howl({
-                   src: ['assets/sounds/game-over.mp3'],
-                   volume: 0.8
-               }),
-               backgroundMusic: new Howl({
-                   src: ['assets/sounds/background-music.mp3'],
-                   loop: true,
-                   volume: 0.3
-               })
-           };
-       }
-
-       play(soundName, options = {}) {
-           if (!this.enabled) return;
-
-           const sound = this.sounds[soundName];
-           if (!sound) {
-               console.warn(`Sound not found: ${soundName}`);
-               return;
-           }
-
-           if (options.sprite) {
-               sound.play(options.sprite);
-           } else {
-               sound.play();
-           }
-
-           // Vary pitch for wall hits (more natural)
-           if (soundName === 'ballHitWall' && options.varPitch) {
-               sound.rate(0.9 + Math.random() * 0.2);
-           }
-       }
-
-       toggle() {
-           this.enabled = !this.enabled;
-           if (!this.enabled) {
-               this.sounds.backgroundMusic.stop();
-           }
-           return this.enabled;
-       }
-
-       setVolume(volume) {
-           this.volume = Math.max(0, Math.min(1, volume));
-           Object.values(this.sounds).forEach(sound => {
-               sound.volume(this.volume * sound._volume); // relative volume
-           });
-       }
-   }
-   ```
-
-3. **Integrate into game**
-
-   **File:** `game.js`
-   ```javascript
-   import { AudioManager } from './audio/AudioManager.js';
-
-   // In constructor:
-   this.audio = new AudioManager();
-
-   // In removeWall():
-   this.audio.play('wallBreak', { sprite: wall.type });
-
-   // In onMouseUp() / shoot:
-   this.audio.play('shoot');
-
-   // In checkWallCollisions() for cushion hits:
-   this.audio.play('ballHitCushion');
-
-   // In nextLevel():
-   this.audio.play('levelComplete');
-
-   // In gameOver():
-   this.audio.play('gameOver');
-   ```
-
-4. **Create sound toggle UI**
-   ```javascript
-   createAudioToggle() {
-       const button = document.createElement('button');
-       button.id = 'audio-toggle';
-       button.textContent = '🔊';
-       button.style.cssText = `
-           position: absolute;
-           top: 20px;
-           left: 20px;
-           background: rgba(0, 139, 255, 0.8);
-           border: none;
-           color: white;
-           font-size: 24px;
-           width: 50px;
-           height: 50px;
-           border-radius: 50%;
-           cursor: pointer;
-       `;
-
-       button.onclick = () => {
-           const enabled = this.audio.toggle();
-           button.textContent = enabled ? '🔊' : '🔇';
-       };
-
-       document.body.appendChild(button);
-   }
-   ```
-
-5. **Sound asset creation**
-
-   Options:
-   - **Generate programmatically** with Web Audio API (free, unlimited)
-   - **Use free libraries**: freesound.org, zapsplat.com
-   - **AI generation**: ElevenLabs, Suno (for music)
-
-   **Recommended:** Programmatic generation for simple impacts, free library for music
-
-   **Programmatic example:**
-   ```javascript
-   // Generate ball hit sound
-   function generateHitSound() {
-       const audioContext = new AudioContext();
-       const duration = 0.1;
-       const sampleRate = audioContext.sampleRate;
-       const buffer = audioContext.createBuffer(1, duration * sampleRate, sampleRate);
-       const data = buffer.getChannelData(0);
-
-       for (let i = 0; i < buffer.length; i++) {
-           const t = i / sampleRate;
-           data[i] = Math.sin(880 * Math.PI * 2 * t) * Math.exp(-t * 20);
-       }
-
-       return buffer;
-   }
-   ```
-
-**Testing Requirements:**
-- Test on mobile (iOS requires user interaction before playing sound)
-- Test sound volume balance
-- Verify toggle works
-- Test background music loop
-
-**Success Criteria:**
-- ✅ All game actions have appropriate sounds
-- ✅ Volume control works
-- ✅ Toggle mute works
-- ✅ Sounds work on mobile (after first interaction)
-- ✅ No audio stuttering
+2. **Integrate into game flow**
+   - On game over → `storage.saveHighScore(this.level)`
+   - Game over screen shows "New High Score!" if current run beats the record
+   - Settings saved on change, loaded on startup
 
 ---
 
-### Task 3.2: Local Storage & High Scores
+### Task 3.2: Home Screen
 
-**Files:** New `src/storage/StorageManager.js`, modify `game.js`
+**Files:** New `src/ui/HomeScreen.js`, modify `src/core/PoolGame.js`, modify `index.html`
+
+**Design:** Neon-themed title screen using the game's color palette, displayed before gameplay starts.
 
 **Implementation Details:**
 
-1. **Create StorageManager**
+1. **Neon title** — "POOLANOID" rendered large with CSS text-shadow bloom glow effect
+   - Multiple layered `text-shadow` values using game colors (`#E4FF30`, `#008BFF`, `#FF5FCF`)
+   - Subtle pulsing animation on the glow (CSS `@keyframes`)
+   - Font: bold sans-serif, large `clamp()` sizing
 
-   **New File:** `src/storage/StorageManager.js`
-   ```javascript
-   export class StorageManager {
-       constructor(gameId = 'poolanoid') {
-           this.gameId = gameId;
-           this.storageKey = `${gameId}_save`;
-       }
+2. **High scores display** — Shows top scores from StorageManager
+   - Compact list of top 5 (level + date)
+   - Neon-styled rows matching game palette
+   - "No scores yet" placeholder if empty
 
-       saveHighScore(level, score) {
-           const data = this.load();
+3. **Orientation selector** — Let user choose portrait or landscape before playing
+   - Two toggle buttons/icons showing phone orientation
+   - Selected choice saved to localStorage via StorageManager
+   - On play: if device supports `screen.orientation.lock()`, attempt to lock to chosen orientation; otherwise just proceed (desktop ignores this)
 
-           if (!data.highScores) {
-               data.highScores = [];
-           }
+4. **Play button** — Large, prominent, neon-styled
+   - Glow effect matching title
+   - Minimum 44px touch target
+   - On click: hides home screen, starts game (calls `PoolGame.startGame()`)
 
-           data.highScores.push({
-               level,
-               score,
-               date: new Date().toISOString()
-           });
+5. **Game flow change** — Constructor sets up renderer/scene but does NOT start the game loop immediately
+   - Home screen shown first
+   - `startGame()` method creates entities, starts `animate()`, shows HUD
+   - On game over → restart returns to home screen (not directly into a new game)
 
-           // Keep top 10
-           data.highScores.sort((a, b) => b.level - a.level);
-           data.highScores = data.highScores.slice(0, 10);
-
-           this.save(data);
-       }
-
-       getHighScore() {
-           const data = this.load();
-           if (!data.highScores || data.highScores.length === 0) {
-               return null;
-           }
-           return data.highScores[0];
-       }
-
-       getAllHighScores() {
-           const data = this.load();
-           return data.highScores || [];
-       }
-
-       saveSettings(settings) {
-           const data = this.load();
-           data.settings = { ...data.settings, ...settings };
-           this.save(data);
-       }
-
-       getSettings() {
-           const data = this.load();
-           return data.settings || {
-               soundEnabled: true,
-               musicEnabled: false,
-               quality: 'auto'
-           };
-       }
-
-       save(data) {
-           try {
-               localStorage.setItem(this.storageKey, JSON.stringify(data));
-           } catch (e) {
-               console.error('Failed to save to localStorage:', e);
-           }
-       }
-
-       load() {
-           try {
-               const data = localStorage.getItem(this.storageKey);
-               return data ? JSON.parse(data) : {};
-           } catch (e) {
-               console.error('Failed to load from localStorage:', e);
-               return {};
-           }
-       }
-
-       clear() {
-           localStorage.removeItem(this.storageKey);
-       }
-   }
-   ```
-
-2. **Integrate into game**
-
-   **File:** `game.js`
-   ```javascript
-   import { StorageManager } from './storage/StorageManager.js';
-
-   // In constructor:
-   this.storage = new StorageManager();
-   const settings = this.storage.getSettings();
-   this.audio.enabled = settings.soundEnabled;
-
-   // In gameOver():
-   this.storage.saveHighScore(this.level, this.calculateScore());
-   const highScore = this.storage.getHighScore();
-
-   // Display high score in game over screen
-   if (highScore && this.level > highScore.level) {
-       levelText.textContent = `🏆 New High Score! Level ${this.level}`;
-   } else {
-       levelText.textContent = `Level reached: ${this.level}`;
-   }
-   ```
-
-3. **Add high score display**
-
-   **New method in game.js:**
-   ```javascript
-   createHighScoreScreen() {
-       const screen = document.createElement('div');
-       screen.id = 'highscore-screen';
-       // ... styling ...
-
-       const scores = this.storage.getAllHighScores();
-       const list = document.createElement('ol');
-
-       scores.forEach((score, index) => {
-           const item = document.createElement('li');
-           item.textContent = `Level ${score.level} - ${new Date(score.date).toLocaleDateString()}`;
-           list.appendChild(item);
-       });
-
-       screen.appendChild(list);
-       return screen;
-   }
-   ```
-
-4. **Add settings persistence**
-   - Save audio on/off state
-   - Save quality settings
-   - Save control preferences
-
-**Testing Requirements:**
-- Test localStorage quota limits
-- Test private browsing (localStorage may fail)
-- Verify scores persist across sessions
-
-**Success Criteria:**
-- ✅ High scores saved and displayed
-- ✅ Settings persisted across sessions
-- ✅ Graceful handling if localStorage unavailable
+**Visual style reference (CSS glow):**
+```css
+.neon-title {
+    color: #E4FF30;
+    text-shadow:
+        0 0 7px #E4FF30,
+        0 0 10px #E4FF30,
+        0 0 21px #E4FF30,
+        0 0 42px #008BFF,
+        0 0 82px #008BFF,
+        0 0 92px #008BFF;
+}
+```
 
 ---
 
 ### Task 3.3: Power-up & Special Walls
 
-**Files:** `game.js`, `config.js`
+**Files:** `src/entities/WallManager.js`, `src/config.js`, `src/core/PoolGame.js`
 
 **Implementation Details:**
 
-1. **Define power-up types**
+1. **New power-up wall types** in `CONFIG.WALL_TYPES` (reduce normal wall probability to accommodate):
+   - **Extra Shot** (`0x00FFFF` cyan, ~4%) — Awards +3 shots on break
+   - **Bomb** (`0xFF0000` red, ~3%) — Destroys all walls within 1.5 unit radius
+   - **Multi-Ball** (`0xFFAA00` orange, ~3%) — Spawns 2 temporary extra balls
 
-   **File:** `config.js`
-   ```javascript
-   WALL_TYPES: {
-       MINT: {
-           probability: 0.70,  // reduced from 0.80
-           color: 0x00FF9C,
-           type: 'normal'
-       },
-       LIME: {
-           probability: 0.10,
-           color: 0xE4FF30,
-           type: 'blue'
-       },
-       MAGENTA: {
-           probability: 0.10,
-           color: 0xFF5FCF,
-           type: 'red'
-       },
+2. **Power-up activation** — `WallManager` emits a new `onPowerup(type, position)` callback; `PoolGame` handles the effect logic (modifying shots, spawning balls, area destruction)
 
-       // New power-up walls (total 10% probability)
-       MULTI_BALL: {
-           probability: 0.03,
-           color: 0xFFAA00,  // Orange
-           type: 'powerup',
-           effect: 'multi_ball'
-       },
-       EXTRA_SHOT: {
-           probability: 0.04,
-           color: 0x00FFFF,  // Cyan
-           type: 'powerup',
-           effect: 'extra_shot'
-       },
-       BOMB: {
-           probability: 0.03,
-           color: 0xFF0000,  // Red
-           type: 'powerup',
-           effect: 'bomb'
-       }
-   }
-   ```
+3. **Visual indicators** — Power-up walls get a subtle pulsating emissive glow to distinguish them from regular walls
 
-2. **Implement power-up effects**
-
-   **File:** `game.js`
-   ```javascript
-   removeWall(wall, impactPosition) {
-       if (wall.removing) return;
-       wall.removing = true;
-
-       // Handle power-up effects
-       if (wall.powerup) {
-           this.activatePowerup(wall.powerup, impactPosition);
-       }
-
-       // ... existing removal code ...
-   }
-
-   activatePowerup(powerupType, position) {
-       switch (powerupType) {
-           case 'multi_ball':
-               this.spawnExtraBalls(2, position);
-               this.showPowerupText('Multi-Ball!', position);
-               break;
-
-           case 'extra_shot':
-               this.shotsRemaining += 3;
-               this.updateGameInfo();
-               this.showPowerupText('+3 Shots!', position);
-               this.audio.play('powerup');
-               break;
-
-           case 'bomb':
-               this.destroyNearbyWalls(position, 1.5); // 1.5 unit radius
-               this.showPowerupText('BOOM!', position);
-               this.audio.play('explosion');
-               break;
-       }
-   }
-
-   spawnExtraBalls(count, position) {
-       // Create temporary balls that exist for one shot
-       for (let i = 0; i < count; i++) {
-           const angle = (Math.PI * 2 * i) / count;
-           const offset = new CANNON.Vec3(
-               Math.cos(angle) * 0.5,
-               0,
-               Math.sin(angle) * 0.5
-           );
-
-           // Create ball (similar to main ball)
-           const extraBall = this.createExtraBall(position.vadd(offset));
-           this.extraBalls.push(extraBall);
-       }
-   }
-
-   destroyNearbyWalls(position, radius) {
-       const wallsToRemove = [];
-
-       this.walls.forEach(wall => {
-           const distance = wall.body.position.distanceTo(position);
-           if (distance < radius) {
-               wallsToRemove.push(wall);
-           }
-       });
-
-       wallsToRemove.forEach(wall => this.removeWall(wall, wall.body.position));
-   }
-
-   showPowerupText(text, position) {
-       // Floating text effect
-       const textSprite = this.createTextSprite(text);
-       textSprite.position.copy(position);
-       this.scene.add(textSprite);
-
-       // Animate upward and fade
-       const startTime = Date.now();
-       const duration = 1500;
-
-       const animateText = () => {
-           const elapsed = Date.now() - startTime;
-           const progress = elapsed / duration;
-
-           if (progress >= 1) {
-               this.scene.remove(textSprite);
-               return;
-           }
-
-           textSprite.position.y += 0.02;
-           textSprite.material.opacity = 1 - progress;
-
-           requestAnimationFrame(animateText);
-       };
-
-       animateText();
-   }
-   ```
-
-3. **Visual indicators for power-ups**
-   - Pulsating glow effect
-   - Different mesh shape (star, sphere)
-   - Particle trail
-
-**Testing Requirements:**
-- Test each power-up effect
-- Verify bomb radius appropriate
-- Test multi-ball interaction
-
-**Success Criteria:**
-- ✅ Power-ups spawn at correct probability
-- ✅ Each power-up has distinct visual
-- ✅ Effects work as intended
-- ✅ Game balance maintained
+4. **Floating text** — On power-up activation, a text sprite floats upward and fades ("BOOM!", "+3 Shots!", "Multi-Ball!")
 
 ---
 
 ### Task 3.4: Combo System & Feedback
 
-**Files:** `game.js`
+**Files:** `src/core/PoolGame.js`, `src/config.js`
 
 **Implementation Details:**
 
-1. **Track hit combos**
-   ```javascript
-   // In constructor:
-   this.combo = 0;
-   this.comboTimer = null;
-   this.COMBO_TIMEOUT = 2000; // 2 seconds to maintain combo
+1. **Combo tracking** — Count consecutive wall breaks within a time window (2s timeout resets combo)
+   - Combo counter displayed on screen when ≥ 2x
+   - Combo rewards: +1 shot at 5x, +2 shots at 10x
 
-   // In removeWall():
-   this.combo++;
-   clearTimeout(this.comboTimer);
-
-   if (this.combo >= 2) {
-       this.showComboText(this.combo);
-       this.audio.play('combo', { pitch: 1 + (this.combo * 0.1) });
-   }
-
-   this.comboTimer = setTimeout(() => {
-       this.combo = 0;
-   }, this.COMBO_TIMEOUT);
-   ```
-
-2. **Combo rewards**
-   ```javascript
-   if (this.combo === 5) {
-       this.shotsRemaining++;
-       this.showPowerupText('+1 Shot! (5x Combo)', impactPosition);
-   } else if (this.combo === 10) {
-       this.shotsRemaining += 2;
-       this.showPowerupText('+2 Shots! (10x Combo)', impactPosition);
-   }
-   ```
-
-3. **Visual feedback improvements**
-   - Screen shake on wall break
-   - Slow-mo effect on high combo
+2. **Visual feedback**
+   - Screen shake on wall break (subtle camera offset, decays over ~80ms)
+   - Slow-mo effect on high combo (temporarily reduce physics timestep)
    - Camera zoom on level complete
 
-**Success Criteria:**
-- ✅ Combo counter visible
-- ✅ Combo timeout works correctly
-- ✅ Rewards feel satisfying
+---
+
+### Task 3.5: Sound Effects (Web Audio Synthesis)
+
+**Files:** New `src/audio/AudioManager.js`, modify `src/core/PoolGame.js`
+
+**Approach:** Pure Web Audio API synthesis — no external libraries, no audio files. Subtle, musical sound design.
+
+**Implementation Details:**
+
+1. **AudioManager class** — Creates and reuses a single `AudioContext`
+   - Initialized on first user interaction (tap/click) to comply with mobile autoplay policies
+   - `enabled` toggle, volume control
+
+2. **Sound design — Major scale notes E3 to E6**
+   - Define E major scale frequencies: E, F#, G#, A, B, C#, D# across octaves 3–6
+   - Each wall break plays a random note from the scale
+   - Oscillator type: sine or triangle (soft, clean tone)
+   - Short envelope: quick attack (~5ms), short sustain, exponential decay (~150ms)
+   - Subtle volume (0.1–0.2 gain) — sounds should enhance, not dominate
+
+3. **Sound events:**
+   - **Wall break** — Random major scale note, sine oscillator, fast decay
+   - **Shoot** — Low percussive thud (filtered noise burst, ~50ms)
+   - **Cushion bounce** — Soft click (very short sine ping, muted)
+   - **Level complete** — Quick ascending arpeggio (3-4 notes up the scale, staggered ~80ms apart)
+   - **Game over** — Descending minor phrase (3 notes, slower decay)
+   - **Combo hit** — Same as wall break but pitch rises with combo count
+
+4. **Integration** — `PoolGame` calls `audio.play('wallBreak')`, `audio.play('shoot')`, etc. at appropriate moments. AudioManager handles all synthesis internally.
+
+5. **No external dependencies** — Everything generated via `OscillatorNode`, `GainNode`, `BiquadFilterNode`
 
 ---
 
@@ -1822,9 +1391,11 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 - [ ] WebGL context loss handled gracefully
 
 ### Phase 3 (Features)
-- [ ] Sounds enhance gameplay (player feedback)
-- [ ] High scores persist across sessions
+- [ ] Home screen with neon glow title, high scores, orientation choice, play button
+- [ ] High scores persist across sessions (localStorage)
 - [ ] Power-ups balanced and fun
+- [ ] Combo system rewards skillful play
+- [ ] Synthesized sounds subtle and musical (Web Audio, E major scale)
 
 ### Phase 4 (Visual)
 - [ ] Particle effects don't impact performance
