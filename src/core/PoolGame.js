@@ -8,6 +8,7 @@ import { Table } from '../entities/Table.js';
 import { WallManager } from '../entities/WallManager.js';
 import { InputManager } from '../input/InputManager.js';
 import { ImpactEffects } from '../effects/ImpactEffects.js';
+import { FloatingText } from '../effects/FloatingText.js';
 import { HUD } from '../ui/HUD.js';
 import { GameOverScreen } from '../ui/GameOverScreen.js';
 import { HomeScreen } from '../ui/HomeScreen.js';
@@ -21,7 +22,11 @@ export class PoolGame {
     constructor() {
         // Game state
         this.level = 1;
+        this.score = 0;
+        this.combo = 0;
+        this.lastHitTime = 0;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
+        this.ballSettledTime = 0;
         this.isGameOver = false;
         this.isPlaying = false;
         this.isContextLost = false;
@@ -74,16 +79,25 @@ export class PoolGame {
 
         // Effects
         this.effects = new ImpactEffects(this.scene);
+        this.floatingText = new FloatingText(this.scene);
+
+        // Extra balls (from multi-ball power-up)
+        this.extraBalls = [];
 
         // Walls
         this.wallManager = new WallManager(this.scene, this.physics);
-        this.wallManager.onWallRemoved = (pos) => this.effects.spawn(pos);
+        this.wallManager.onWallRemoved = (pos, type, isPowerUp) => {
+            this.effects.spawn(pos);
+            this.scoreWall(type, isPowerUp, pos);
+        };
         this.wallManager.onAllCleared = () => this.nextLevel();
         this.wallManager.onCountChanged = () => this.updateHUD();
+        this.wallManager.onPowerUp = (type, pos) => this.handlePowerUp(type, pos);
 
-        // Ball collision → wall removal queue
+        // Ball collision → wall removal queue + velocity effects
         this.ball.body.addEventListener('collide', (event) => {
             this.wallManager.queueRemoval(event.body, this.ball.body.position.clone());
+            if (event.body.wallType) this.applyWallEffect(event.body.wallType, this.ball.body);
         });
 
         // Input
@@ -125,20 +139,29 @@ export class PoolGame {
     startGame() {
         this.homeScreen.hide();
         this.level = 1;
+        this.score = 0;
+        this.combo = 0;
+        this.lastHitTime = 0;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
+        this.ballSettledTime = 0;
         this.isGameOver = false;
         this.isPlaying = true;
         this.ball.reset();
+        this.clearExtraBalls();
         this.effects.clear();
+        this.floatingText.clear();
         this.wallManager.createWalls(this.level, this.ball.body.material);
+        this.updateAimLineScale();
         this.hud.show();
         this.updateHUD();
     }
 
     returnToHome() {
         this.isPlaying = false;
+        this.clearExtraBalls();
         this.wallManager.clearAll();
         this.effects.clear();
+        this.floatingText.clear();
         this.ball.reset();
         this.hud.hide();
         this.homeScreen.refresh();
@@ -185,17 +208,21 @@ export class PoolGame {
     /* ── Gameplay ── */
 
     updateHUD() {
-        this.hud.update(this.level, this.shotsRemaining, this.wallManager.count);
+        this.hud.update(this.level, this.shotsRemaining, this.wallManager.count, this.score);
+    }
+
+    updateAimLineScale() {
+        const fade = CONFIG.AIMING.AIM_LINE_FADE_LEVEL;
+        this.input.aimLineScale = Math.max(0, 1 - (this.level - 1) / (fade - 1));
     }
 
     onShoot(direction, magnitude) {
         this.shotsRemaining--;
+        this.ballSettledTime = 0;
         this.ball.applyImpulse(direction, magnitude);
         this.updateHUD();
-
-        if (this.shotsRemaining <= 0 && this.wallManager.count > 0) {
-            this.gameOver();
-        }
+        // Game-over check is deferred to animate() so the last shot plays out
+        // and power-ups (extra shots) can still save the player.
     }
 
     animate(time = 0) {
@@ -207,7 +234,27 @@ export class PoolGame {
                 this.physics.update(time, this.ball.body.velocity, () => this.wallManager.processRemovals());
                 this.ball.clampToTable();
                 this.ball.syncMeshToBody();
+                this.updateExtraBalls();
                 this.effects.update();
+                this.floatingText.update();
+                this.wallManager.updatePowerupGlow(time);
+
+                // Deferred game-over: wait for ball + extra balls to settle
+                if (!this.isGameOver && this.shotsRemaining <= 0
+                    && this.wallManager.count > 0
+                    && this.extraBalls.length === 0) {
+                    const vel = this.ball.body.velocity;
+                    const speedSq = vel.x * vel.x + vel.z * vel.z;
+                    const limit = CONFIG.PHYSICS.BALL_SLEEP_SPEED_LIMIT;
+                    if (speedSq < limit * limit) {
+                        this.ballSettledTime += 1 / 60;
+                        if (this.ballSettledTime >= CONFIG.PHYSICS.BALL_SLEEP_TIME_LIMIT) {
+                            this.gameOver();
+                        }
+                    } else {
+                        this.ballSettledTime = 0;
+                    }
+                }
             }
             this.controls.update();
             this.renderer.render(this.scene, this.camera);
@@ -222,10 +269,13 @@ export class PoolGame {
         this.level++;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS + (this.level - 1) * CONFIG.GAME.EXTRA_SHOTS_PER_LEVEL;
         this.ball.stop();
+        this.clearExtraBalls();
 
         setTimeout(() => {
             this.effects.clear();
+            this.floatingText.clear();
             this.wallManager.createWalls(this.level, this.ball.body.material);
+            this.updateAimLineScale();
             this.updateHUD();
         }, CONFIG.EFFECTS.NEXT_LEVEL_DELAY);
     }
@@ -233,14 +283,148 @@ export class PoolGame {
     gameOver() {
         this.isGameOver = true;
         this.ball.stop();
+        this.clearExtraBalls();
 
         const previousBest = this.storage.getHighScore();
-        const isNewBest = !previousBest || this.level > previousBest.level;
+        const isNewBest = !previousBest || this.score > previousBest.score;
 
-        this.gameOverScreen.show(this.level, isNewBest, (initials) => {
-            this.storage.saveHighScore(this.level, initials);
+        this.gameOverScreen.show(this.level, this.score, isNewBest, (initials) => {
+            this.storage.saveHighScore(this.score, this.level, initials);
             this.returnToHome();
         });
+    }
+
+    /* ── Power-ups & Multi-ball ── */
+
+    handlePowerUp(type, position) {
+        const def = CONFIG.POWERUPS[type];
+        const colorHex = '#' + def.color.toString(16).padStart(6, '0');
+        this.floatingText.spawn(def.label, position, colorHex);
+
+        switch (type) {
+            case 'extraShot':
+                this.shotsRemaining += def.shots;
+                this.updateHUD();
+                break;
+            case 'multiBall':
+                this.spawnExtraBalls(position);
+                break;
+            // bomb chain reaction is handled internally by WallManager
+        }
+    }
+
+    applyWallEffect(wallType, ballBody) {
+        switch (wallType) {
+            case 'sticky':
+                ballBody.velocity.set(0, 0, 0);
+                ballBody.angularVelocity.set(0, 0, 0);
+                break;
+            case 'lowBounce':
+                ballBody.velocity.x *= 0.25;
+                ballBody.velocity.z *= 0.25;
+                break;
+            case 'extraBounce':
+                ballBody.velocity.x *= 1.25;
+                ballBody.velocity.z *= 1.25;
+                break;
+        }
+    }
+
+    scoreWall(type, isPowerUp, position) {
+        if (isPowerUp) return; // power-up walls don't give points
+
+        const points = CONFIG.SCORING.POINTS[type] || 0;
+        if (points === 0) return;
+
+        // Combo tracking
+        const now = Date.now();
+        if (now - this.lastHitTime < CONFIG.SCORING.COMBO_WINDOW) {
+            this.combo++;
+        } else {
+            this.combo = 1;
+        }
+        this.lastHitTime = now;
+
+        // Combo bonus
+        const bonusTable = CONFIG.SCORING.COMBO_BONUS;
+        const comboBonus = this.combo < bonusTable.length
+            ? bonusTable[this.combo]
+            : bonusTable[bonusTable.length - 1];
+        const total = points + comboBonus;
+
+        this.score += total;
+        this.updateHUD();
+
+        // Color-coded floating text
+        const behavior = CONFIG.WALL_BEHAVIORS[type];
+        const colorHex = '#' + behavior.color.toString(16).padStart(6, '0');
+        const label = comboBonus > 0 ? `+${total} (x${this.combo})` : `+${points}`;
+        this.floatingText.spawn(label, position, colorHex);
+    }
+
+    spawnExtraBalls(position) {
+        const mainVel = this.ball.body.velocity;
+        const speed = Math.sqrt(mainVel.x * mainVel.x + mainVel.z * mainVel.z)
+            * CONFIG.MULTI_BALL.IMPULSE_FACTOR;
+        const baseAngle = Math.atan2(mainVel.z, mainVel.x);
+        const spread = CONFIG.MULTI_BALL.SPREAD_ANGLE;
+        const count = CONFIG.POWERUPS.multiBall.count;
+
+        for (let i = 0; i < count; i++) {
+            const angle = baseAngle + spread * (i / (count - 1) - 0.5);
+            const extraBall = new Ball(this.scene, this.physics, this.ball.body.material);
+
+            const radius = CONFIG.DIMENSIONS.BALL_RADIUS;
+            extraBall.body.position.set(position.x, radius, position.z);
+            extraBall.mesh.position.set(position.x, radius, position.z);
+
+            const impulseSpeed = Math.max(speed, 3); // minimum speed so they move
+            extraBall.body.velocity.set(
+                Math.cos(angle) * impulseSpeed,
+                0,
+                Math.sin(angle) * impulseSpeed
+            );
+
+            extraBall.body.addEventListener('collide', (event) => {
+                this.wallManager.queueRemoval(event.body, extraBall.body.position.clone());
+                if (event.body.wallType) this.applyWallEffect(event.body.wallType, extraBall.body);
+            });
+
+            this.extraBalls.push({ ball: extraBall, spawnTime: Date.now() });
+        }
+    }
+
+    updateExtraBalls() {
+        const now = Date.now();
+        for (let i = this.extraBalls.length - 1; i >= 0; i--) {
+            const eb = this.extraBalls[i];
+            const expired = now - eb.spawnTime > CONFIG.MULTI_BALL.TIMEOUT;
+            const vel = eb.ball.body.velocity;
+            const speedSq = vel.x * vel.x + vel.z * vel.z;
+            const limit = CONFIG.PHYSICS.BALL_SLEEP_SPEED_LIMIT;
+            const stopped = speedSq < limit * limit;
+
+            if (expired || stopped) {
+                this.physics.removeBody(eb.ball.body);
+                this.scene.remove(eb.ball.mesh);
+                eb.ball.mesh.geometry.dispose();
+                eb.ball.mesh.material.dispose();
+                this.extraBalls.splice(i, 1);
+            } else {
+                eb.ball.clampToTable();
+                eb.ball.syncMeshToBody();
+            }
+        }
+    }
+
+    clearExtraBalls() {
+        for (const eb of this.extraBalls) {
+            this.physics.removeBody(eb.ball.body);
+            this.scene.remove(eb.ball.mesh);
+            eb.ball.mesh.geometry.dispose();
+            eb.ball.mesh.material.dispose();
+        }
+        this.extraBalls = [];
     }
 
     /* ── Infrastructure ── */

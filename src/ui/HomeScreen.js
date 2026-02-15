@@ -154,18 +154,18 @@ export class HomeScreen {
             initials.className = 'score-initials';
             initials.textContent = s.initials || '---';
 
+            const scoreVal = document.createElement('span');
+            scoreVal.className = 'score-value';
+            scoreVal.textContent = s.score != null ? s.score : `Lvl ${s.level}`;
+
             const level = document.createElement('span');
             level.className = 'score-level';
-            level.textContent = `Level ${s.level}`;
-
-            const date = document.createElement('span');
-            date.className = 'score-date';
-            date.textContent = new Date(s.date).toLocaleDateString();
+            level.textContent = `Lvl ${s.level}`;
 
             row.appendChild(rank);
             row.appendChild(initials);
+            row.appendChild(scoreVal);
             row.appendChild(level);
-            row.appendChild(date);
             this.scoresContainer.appendChild(row);
         });
     }

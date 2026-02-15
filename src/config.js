@@ -46,11 +46,6 @@ export const CONFIG = {
 
         BALL_CUSHION_FRICTION: 0.02,
         BALL_CUSHION_RESTITUTION: 0.80,
-
-        WALL_FRICTION: 0.02,
-        WALL_NORMAL_RESTITUTION: 0.82,
-        WALL_BLUE_RESTITUTION: 0.42,
-        WALL_RED_RESTITUTION: 0.95
     },
 
     // Dimensions (world units)
@@ -88,7 +83,9 @@ export const CONFIG = {
         MAX_IMPULSE: 50,
         IMPULSE_MULTIPLIER: 4,
         TOUCH_HIT_RADIUS: 0.8,
-        MOUSE_HIT_RADIUS: 0.15
+        MOUSE_HIT_RADIUS: 0.15,
+        AIM_LINE_MAX_LENGTH: 4,
+        AIM_LINE_FADE_LEVEL: 10,
     },
 
     // Visual Effects
@@ -104,12 +101,83 @@ export const CONFIG = {
         NEXT_LEVEL_DELAY: 1000
     },
 
-    // Wall Type Definitions (cumulative thresholds)
-    WALL_TYPES: [
-        { threshold: 0.10, color: 0xE4FF30, type: 'blue' },
-        { threshold: 0.20, color: 0xFF5FCF, type: 'red' },
-        { threshold: 1.00, color: 0x00FF9C, type: 'normal' }
+    // Wall behavior types (velocity effects applied in code; restitution uniform)
+    WALL_BEHAVIORS: {
+        normal:      { color: 0x00FF9C, restitution: 0.82, friction: 0.02 },
+        extraBounce: { color: 0xFF5FCF, restitution: 0.82, friction: 0.02 },
+        sticky:      { color: 0xFFAA00, restitution: 0.82, friction: 0.02 },
+        lowBounce:   { color: 0xE4FF30, restitution: 0.82, friction: 0.02 },
+    },
+
+    // Power-up walls (trigger effect when destroyed)
+    POWERUPS: {
+        extraShot: { color: 0x00FFFF, label: '+1 Shot!', shots: 1 },
+        bomb:      { color: 0xFF0000, label: 'BOOM!', radius: 1.5 },
+        multiBall: { color: 0x00BFFF, label: 'Multi-Ball!', count: 2 },
+    },
+
+    // Level-scaled wall spawn rates (cumulative probability thresholds)
+    WALL_SPAWN_RATES: [
+        {
+            maxLevel: 2,
+            types: [
+                { threshold: 0.10, type: 'extraBounce' },
+                { threshold: 0.20, type: 'lowBounce' },
+                { threshold: 1.00, type: 'normal' },
+            ]
+        },
+        {
+            maxLevel: 5,
+            types: [
+                { threshold: 0.10, type: 'extraBounce' },
+                { threshold: 0.20, type: 'lowBounce' },
+                { threshold: 0.25, type: 'sticky' },
+                { threshold: 0.29, type: 'extraShot' },
+                { threshold: 0.33, type: 'bomb' },
+                { threshold: 0.34, type: 'multiBall' },
+                { threshold: 1.00, type: 'normal' },
+            ]
+        },
+        {
+            maxLevel: Infinity,
+            types: [
+                { threshold: 0.12, type: 'extraBounce' },
+                { threshold: 0.24, type: 'lowBounce' },
+                { threshold: 0.32, type: 'sticky' },
+                { threshold: 0.38, type: 'extraShot' },
+                { threshold: 0.44, type: 'bomb' },
+                { threshold: 0.48, type: 'multiBall' },
+                { threshold: 1.00, type: 'normal' },
+            ]
+        },
     ],
+
+    // Scoring
+    SCORING: {
+        POINTS: {
+            normal: 1,
+            extraBounce: 1,
+            lowBounce: 1,
+            sticky: 2,
+        },
+        COMBO_WINDOW: 1500,
+        COMBO_BONUS: [0, 0, 1, 2, 3, 5],
+    },
+
+    // Multi-ball power-up
+    MULTI_BALL: {
+        IMPULSE_FACTOR: 0.6,
+        SPREAD_ANGLE: Math.PI * 2 / 3,
+        TIMEOUT: 8000,
+    },
+
+    // Floating text effect
+    FLOATING_TEXT: {
+        DURATION: 1500,
+        RISE_SPEED: 1.2,
+        FONT_SIZE: 64,
+        CANVAS_SIZE: 256,
+    },
 
     // Lighting
     LIGHTING: {

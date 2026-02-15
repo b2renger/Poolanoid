@@ -8,16 +8,17 @@ export class StorageManager {
         this.data = this._load();
     }
 
-    saveHighScore(level, initials) {
+    saveHighScore(score, level, initials) {
         if (!this.data.highScores) this.data.highScores = [];
 
         this.data.highScores.push({
             initials: (initials || 'AAA').toUpperCase().slice(0, 3),
+            score,
             level,
             date: new Date().toISOString()
         });
 
-        this.data.highScores.sort((a, b) => b.level - a.level);
+        this.data.highScores.sort((a, b) => b.score - a.score || b.level - a.level);
         this.data.highScores = this.data.highScores.slice(0, 3);
 
         this._persist();

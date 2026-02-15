@@ -8,7 +8,7 @@ export class GameOverScreen {
         this.element = null;
     }
 
-    show(level, isNewBest, onDone) {
+    show(level, score, isNewBest, onDone) {
         const div = document.createElement('div');
         div.style.position = 'absolute';
         div.style.top = '50%';
@@ -26,10 +26,17 @@ export class GameOverScreen {
         title.style.marginBottom = '20px';
         title.textContent = isNewBest ? 'New High Score!' : 'Game Over!';
 
+        const scoreText = document.createElement('div');
+        scoreText.style.fontSize = 'clamp(24px, 6vw, 36px)';
+        scoreText.style.marginBottom = '8px';
+        scoreText.style.fontWeight = 'bold';
+        scoreText.textContent = `Score: ${score}`;
+
         const levelText = document.createElement('div');
-        levelText.style.fontSize = 'clamp(18px, 4vw, 24px)';
+        levelText.style.fontSize = 'clamp(14px, 3vw, 18px)';
         levelText.style.marginBottom = '24px';
-        levelText.textContent = `Level reached: ${level}`;
+        levelText.style.opacity = '0.7';
+        levelText.textContent = `Level ${level}`;
 
         // ── Initials input ──
         const initialsLabel = document.createElement('div');
@@ -102,6 +109,7 @@ export class GameOverScreen {
         };
 
         div.appendChild(title);
+        div.appendChild(scoreText);
         div.appendChild(levelText);
         div.appendChild(initialsLabel);
         div.appendChild(initialsRow);

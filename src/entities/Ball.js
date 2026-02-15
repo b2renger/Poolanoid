@@ -6,7 +6,7 @@ import { CONFIG } from '../config.js';
  * Ball entity: creates and manages the ball mesh + physics body.
  */
 export class Ball {
-    constructor(scene, physics) {
+    constructor(scene, physics, existingMaterial = null) {
         const radius = CONFIG.DIMENSIONS.BALL_RADIUS;
         const segments = CONFIG.DIMENSIONS.BALL_SEGMENTS;
 
@@ -23,12 +23,12 @@ export class Ball {
         this.mesh.castShadow = true;
         scene.add(this.mesh);
 
-        // Physics
+        // Physics (reuse material for extra balls so contact materials apply)
         this.body = new CANNON.Body({
             mass: CONFIG.PHYSICS.BALL_MASS,
             shape: new CANNON.Sphere(radius),
             position: new CANNON.Vec3(0, radius, 0),
-            material: new CANNON.Material(),
+            material: existingMaterial || new CANNON.Material(),
             linearDamping: CONFIG.PHYSICS.BALL_LINEAR_DAMPING,
             angularDamping: CONFIG.PHYSICS.BALL_ANGULAR_DAMPING,
             sleepSpeedLimit: CONFIG.PHYSICS.BALL_SLEEP_SPEED_LIMIT,

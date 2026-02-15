@@ -20,6 +20,8 @@ export class InputManager {
         this.getBallPosition = () => new THREE.Vector3();
         /** @type {Function|null} Called with (direction: THREE.Vector3, magnitude: number). */
         this.onShoot = null;
+        /** Aim line scale factor (0 = hidden, 1 = full length). Set by game per level. */
+        this.aimLineScale = 1;
 
         // Aiming line
         const lineGeometry = new THREE.BufferGeometry();
@@ -77,7 +79,7 @@ export class InputManager {
                 this.activeTouchId = pos.touchId;
                 this.aimStart.copy(ballPos);
                 this.aimEnd.copy(this.aimStart);
-                this.aimingLine.visible = true;
+                this.aimingLine.visible = this.aimLineScale > 0;
                 this.controls.enabled = false;
             }
         };
@@ -102,7 +104,19 @@ export class InputManager {
 
             this.aimStart.copy(ballPos);
             this.aimEnd.copy(intersection);
-            this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, this.aimEnd]);
+
+            // Draw predictive line in shot direction (reversed from drag)
+            if (this.aimLineScale > 0) {
+                const dir = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd);
+                const dragDist = dir.length();
+                if (dragDist > 0.01) {
+                    dir.normalize();
+                    const maxLen = CONFIG.AIMING.AIM_LINE_MAX_LENGTH;
+                    const len = Math.min(dragDist, maxLen) * this.aimLineScale;
+                    const lineEnd = new THREE.Vector3().copy(this.aimStart).addScaledVector(dir, len);
+                    this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, lineEnd]);
+                }
+            }
         };
 
         const onInputEnd = (event) => {

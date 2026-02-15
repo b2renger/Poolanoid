@@ -638,7 +638,7 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 ---
 
-### Task 3.3: Special Walls & Power-ups
+### Task 3.3: Special Walls & Power-ups ✅
 
 **Files:** `src/entities/WallManager.js`, `src/config.js`, `src/core/PoolGame.js`, `src/entities/Ball.js`
 
@@ -657,11 +657,13 @@ These exist alongside the current `normal` wall. They are visually distinct (col
 
 These are rarer walls that trigger a one-time effect when destroyed. They get a subtle **pulsating emissive glow** (animate `emissiveIntensity` between 0.1 and 0.5 in the game loop) to distinguish them from behavior walls.
 
-| Type | Color | Effect |
-|------|-------|--------|
-| **Extra Shot** | `0x00FFFF` cyan | Awards **+3 shots** immediately. HUD flashes briefly. |
-| **Bomb** | `0xFF0000` red | Destroys all walls within **1.5 world-unit radius** of impact. Chain-reacts with other bomb walls. |
-| **Multi-Ball** | `0x00BFFF` sky blue | Spawns **2 temporary extra balls** at impact position. |
+| Type | Color | Effect | Points |
+|------|-------|--------|--------|
+| **Extra Shot** | `0x00FFFF` cyan | Awards **+1 shot** immediately. | 0 |
+| **Bomb** | `0xFF0000` red | Destroys all walls within **1.5 world-unit radius** of impact. Chain-reacts with other bomb walls. | 0 (but destroyed walls still award their points) |
+| **Multi-Ball** | `0x00BFFF` sky blue | Spawns **2 temporary extra balls** at impact position. | 0 |
+
+Power-up walls give **no score points** — their triggered effect IS the reward.
 
 #### Level-scaled spawn rates
 
@@ -671,11 +673,11 @@ Special wall probability increases with level. `CONFIG.WALL_TYPES` becomes a fun
 Level 1–2:   Normal 80%, Extra-bounce 10%, Low-bounce 10%
              (no power-ups yet — learn the basics)
 
-Level 3–5:   Normal 70%, Extra-bounce 10%, Low-bounce 8%, Sticky 5%,
-             Extra Shot 3%, Bomb 2%, Multi-Ball 2%
+Level 3–5:   Normal 70%, Extra-bounce 10%, Low-bounce 10%, Sticky 5%,
+             Extra Shot 4%, Bomb 4%, Multi-Ball 1%
 
-Level 6+:    Normal 55%, Extra-bounce 12%, Low-bounce 8%, Sticky 8%,
-             Extra Shot 6%, Bomb 5%, Multi-Ball 6%
+Level 6+:    Normal 55%, Extra-bounce 12%, Low-bounce 12%, Sticky 8%,
+             Extra Shot 6%, Bomb 6%, Multi-Ball 4%
 ```
 
 Implementation: `WallManager.createWalls(level, ballMaterial)` computes `CONFIG.getWallTypes(level)` which returns the cumulative-threshold array for that level. The existing `roll < threshold` logic works unchanged.
@@ -703,9 +705,58 @@ This is the most complex power-up. Key decisions:
 - **Behavior walls**: distinguished by color only (no glow). Colors are distinct enough to learn quickly.
 - **Power-up walls**: subtle animated emissive glow. `WallManager` stores a `powerupWalls` sub-array; `PoolGame.animate()` calls `wallManager.updatePowerupGlow(time)` to pulse `emissiveIntensity`.
 
-#### Floating text
+#### Scoring System
 
-On power-up activation, a canvas-based `TextSprite` floats upward from the impact point and fades over ~1.5s. Text examples: "+3 Shots!", "BOOM!", "Multi-Ball!". Uses `CanvasTexture` → `SpriteMaterial` for crisp rendering at any camera angle.
+Every wall destruction awards points. Score is the primary progression metric (replaces level as the high-score value in localStorage).
+
+| Wall type | Points | Floating text |
+|-----------|--------|---------------|
+| **Normal** | +1 | `+1` (mint) |
+| **Extra-bounce** | +1 | `+1` (magenta) |
+| **Low-bounce** | +1 | `+1` (lime) |
+| **Sticky** | +2 | `+2` (amber) — reward for the difficulty |
+| **Extra Shot** | 0 | `+1 Shot!` (cyan) |
+| **Bomb** | 0 | `BOOM!` (red) |
+| **Multi-Ball** | 0 | `Multi-Ball!` (sky blue) |
+
+- **HUD** — Score displayed alongside level/shots/walls.
+- **StorageManager** — `saveHighScore(score, level, initials)`. Top 3 sorted by **score** descending.
+- **GameOverScreen** — Shows final score (and level reached).
+- **Bomb blasts** — Each wall destroyed in the blast awards its own points normally.
+- **Combo bonus** — See Task 3.4 for bonus points on multi-hit combos.
+
+#### Floating text (color-coded)
+
+Every wall break shows a floating `TextSprite` above the impact point (canvas-based `CanvasTexture` → `SpriteMaterial`). Text and color match the wall type from the table above. Rises ~1.2 units and fades over 1.5s.
+
+---
+
+### Task 3.3b: Predictive Aim Line with Level Scaling ✅
+
+**Files:** `src/input/InputManager.js`, `src/config.js`
+
+The aim line currently extends from the ball toward the drag point. It should be **reversed** to point in the actual shooting direction — showing the player where the ball will go, not where they're dragging. Its length should **decrease with level** as a difficulty curve, eventually disappearing entirely.
+
+#### Behavior
+
+- **Direction**: Line extends from ball center in the shot direction (opposite of drag). The drag end stays invisible; the player sees only the predicted trajectory.
+- **Length scaling**: A max-length multiplier shrinks each level:
+
+| Level | Aim line length | Purpose |
+|-------|----------------|---------|
+| 1–3 | Full (long guide) | Learning phase — generous aim assist |
+| 4–6 | ~66% | Moderate challenge |
+| 7–9 | ~33% | Short hint |
+| 10+ | Hidden (0) | No aim assist — pure skill |
+
+- **Config**: `CONFIG.AIMING.AIM_LINE_MAX_LENGTH`, `CONFIG.AIMING.AIM_LINE_FADE_LEVEL` (level at which line disappears). Length at level `L` = `maxLength * max(0, 1 - (L - 1) / (fadeLevel - 1))`.
+
+#### Implementation
+
+1. `InputManager` receives a `getLevel` callback (or a direct `aimLineScale` property set by `PoolGame` each level).
+2. In `onInputMove`: compute `direction = aimStart - aimEnd` (shot direction), normalize, then draw a line from `aimStart` to `aimStart + direction * scaledLength`.
+3. In `onInputEnd`: no visual change needed — the impulse calculation already uses the correct direction.
+4. When scale is 0, skip showing the line entirely.
 
 ---
 
@@ -723,21 +774,24 @@ Count walls broken within a rolling time window. A single shot that destroys mul
 
 #### Combo rewards
 
-| Combo | Reward |
-|-------|--------|
-| 2x | No reward, but counter shown |
-| 3x | +1 shot |
-| 5x | +2 shots |
-| 8x+ | +3 shots |
+Combos award **bonus score points** on top of per-wall points. Higher combos also grant bonus shots.
+
+| Combo | Bonus points | Bonus shots | Visual |
+|-------|-------------|-------------|--------|
+| 2x | +2 | — | Counter shown |
+| 3x | +5 | — | Counter + HUD flash |
+| 5x | +10 | +1 shot | Counter + screen shake |
+| 8x+ | +20 | +2 shots | Counter + slow-mo |
 
 Config values in `CONFIG.COMBO`:
 ```javascript
 COMBO: {
-    SETTLE_DELAY: 500,          // ms — wait for more breaks before finalizing
-    THRESHOLDS: [               // { min, shots }
-        { min: 3, shots: 1 },
-        { min: 5, shots: 2 },
-        { min: 8, shots: 3 }
+    SETTLE_DELAY: 500,
+    THRESHOLDS: [
+        { min: 2, points: 2, shots: 0 },
+        { min: 3, points: 5, shots: 1 },
+        { min: 5, points: 10, shots: 1 },
+        { min: 8, points: 20, shots: 2 }
     ]
 }
 ```

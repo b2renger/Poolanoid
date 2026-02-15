@@ -23,10 +23,14 @@ export class HUD {
         this.container.style.textAlign = 'right';
         this.container.style.display = 'none';
 
+        this.scoreEl = document.createElement('div');
+        this.scoreEl.style.fontSize = '1.2em';
+        this.scoreEl.style.fontWeight = 'bold';
         this.levelEl = document.createElement('div');
         this.shotsEl = document.createElement('div');
         this.wallsEl = document.createElement('div');
 
+        this.container.appendChild(this.scoreEl);
         this.container.appendChild(this.levelEl);
         this.container.appendChild(this.shotsEl);
         this.container.appendChild(this.wallsEl);
@@ -36,7 +40,8 @@ export class HUD {
     show() { this.container.style.display = ''; }
     hide() { this.container.style.display = 'none'; }
 
-    update(level, shotsRemaining, wallCount) {
+    update(level, shotsRemaining, wallCount, score) {
+        this.scoreEl.textContent = `Score: ${score}`;
         this.levelEl.textContent = `Level: ${level}`;
         this.shotsEl.textContent = `Shots: ${shotsRemaining}`;
         this.wallsEl.textContent = `Walls: ${wallCount}`;
