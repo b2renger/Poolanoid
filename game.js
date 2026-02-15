@@ -367,10 +367,13 @@ class PoolGame {
             // Update the picking ray with the camera and input position
             raycaster.setFromCamera(inputPos, this.camera);
 
-            // Calculate objects intersecting the picking ray
-            const intersects = raycaster.intersectObject(this.ballMesh);
+            // Check proximity to ball (generous hit radius for touch)
+            const closestPoint = new THREE.Vector3();
+            raycaster.ray.closestPointToPoint(this.ballMesh.position, closestPoint);
+            const distToBall = closestPoint.distanceTo(this.ballMesh.position);
+            const hitRadius = pos.touchId !== null ? 0.8 : 0.15;
 
-            if (intersects.length > 0) {
+            if (distToBall < hitRadius) {
                 this.isAiming = true;
                 this.activeTouchId = pos.touchId; // Store touch ID (null for mouse)
                 this.aimStart.copy(this.ballMesh.position);
