@@ -7,14 +7,14 @@
 body {
     overflow: hidden;
     background-color: #362F4F;
-    /* Handle iPhone notches and safe areas */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #game-container {
-    position: relative;
+    position: fixed;
+    inset: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -23,6 +23,7 @@ body {
 #game-canvas {
     width: 100%;
     height: 100%;
+    touch-action: none;
 }
 
 #ui-overlay {
@@ -54,4 +55,50 @@ body {
 #score {
     font-size: 24px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#loading-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #362F4F;
+    color: #E4FF30;
+    font-family: Arial, sans-serif;
+    font-size: clamp(18px, 4vw, 28px);
+    z-index: 1000;
+    transition: opacity 0.3s ease-out;
+}
+
+.error-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(54, 47, 79, 0.95);
+    color: #E4FF30;
+    font-family: Arial, sans-serif;
+    z-index: 2000;
+    text-align: center;
+    padding: 20px;
+}
+
+.error-overlay p {
+    font-size: clamp(16px, 3vw, 22px);
+    margin-bottom: 20px;
+}
+
+.error-overlay button {
+    font-size: clamp(14px, 2.5vw, 18px);
+    padding: max(10px, 2vh) max(20px, 4vw);
+    min-width: 44px;
+    min-height: 44px;
+    background-color: #008BFF;
+    color: #362F4F;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
 } 

@@ -13,7 +13,7 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 **Priority:** HIGHEST - Blocking mobile deployment
 **Estimated Effort:** 8-12 hours
-**Status:** NOT STARTED
+**Status:** COMPLETED ✅
 
 ### Objectives
 - Make the game fully playable on mobile devices (iOS Safari, Android Chrome)
@@ -21,10 +21,10 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 - Ensure responsive UI and proper viewport configuration
 - Test on real mobile devices
 
-### Task 1.1: Add Touch Event Support
+### Task 1.1: Add Touch Event Support ✅ COMPLETED
 
 **File:** `game.js`
-**Location:** `setupMouseEvents()` method (lines 301-392)
+**Location:** `setupMouseEvents()` method
 
 **Implementation Details:**
 
@@ -81,85 +81,19 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 ---
 
-### Task 1.2: Responsive UI Adjustments
+### Task 1.2: Responsive UI Adjustments ✅ COMPLETED
 
 **Files:** `game.js`, `styles.css`, `index.html`
 
-**Implementation Details:**
+**What was implemented:**
 
-1. **Update viewport meta tag**
-
-   **File:** `index.html` (line 5)
-   ```html
-   <meta name="viewport" content="width=device-width, initial-scale=1.0,
-         maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-   ```
-
-   **Rationale:**
-   - `maximum-scale=1.0, user-scalable=no`: Prevent zoom on double-tap
-   - `viewport-fit=cover`: Handle iPhone notches and safe areas
-
-2. **Add PWA meta tags**
-
-   **File:** `index.html` (in `<head>`)
-   ```html
-   <meta name="apple-mobile-web-app-capable" content="yes">
-   <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
-   <meta name="mobile-web-app-capable" content="yes">
-   <meta name="theme-color" content="#362F4F">
-   ```
-
-3. **Responsive font sizing**
-
-   **File:** `game.js` - `createWallCounter()` method (lines 94-123)
-
-   Current:
-   ```javascript
-   infoContainer.style.fontSize = '24px';
-   ```
-
-   New (responsive):
-   ```javascript
-   // Scale based on viewport width (min 18px, max 28px)
-   const baseFontSize = Math.min(28, Math.max(18, window.innerWidth / 30));
-   infoContainer.style.fontSize = `${baseFontSize}px`;
-   levelDiv.style.fontSize = `${baseFontSize}px`;
-   shotsDiv.style.fontSize = `${baseFontSize}px`;
-   counterDiv.style.fontSize = `${baseFontSize}px`;
-   ```
-
-4. **Responsive Game Over UI**
-
-   **File:** `game.js` - `gameOver()` method (lines 682-745)
-
-   Changes:
-   - Game Over title: `clamp(32px, 5vw, 48px)`
-   - Level text: `clamp(18px, 3vw, 24px)`
-   - Button: `clamp(16px, 2.5vw, 20px)` with `padding: 2vw 4vw`
-   - Button min touch target: 44x44px
-
-5. **Safe area handling for notches**
-
-   **File:** `styles.css`
-   ```css
-   body {
-       /* Handle iPhone notches */
-       padding: env(safe-area-inset-top) env(safe-area-inset-right)
-                env(safe-area-inset-bottom) env(safe-area-inset-left);
-   }
-
-   /* Update HUD positioning */
-   #game-container > div {
-       top: calc(20px + env(safe-area-inset-top));
-       right: calc(20px + env(safe-area-inset-right));
-   }
-   ```
-
-**Testing Requirements:**
-- Test on various screen sizes: 320px (iPhone SE) to 1920px (desktop)
-- Test on devices with notches (iPhone X+)
-- Verify text readability at all sizes
-- Verify button touch targets ≥ 44x44px
+1. **Viewport meta tag** — `index.html` has `maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
+2. **PWA meta tags** — `apple-mobile-web-app-capable`, `theme-color`, etc. in `index.html`
+3. **Responsive font sizing** — HUD uses `Math.min(28, Math.max(18, window.innerWidth / 30))` in `game.js`
+4. **Responsive Game Over UI** — Uses `clamp()` for fonts, `max()` for padding, 44px min touch targets
+5. **Safe area handling** — HUD positioned with `calc(20px + env(safe-area-inset-*))` inline; body has NO padding (canvas fills full viewport, only UI overlays respect safe areas)
+6. **`touch-action: none`** on canvas in `styles.css` — prevents browser touch gesture interference
+7. **`position: fixed` + `100dvh`** on game container — fixes mobile Safari address bar viewport issue (with `100vh` fallback)
 
 **Success Criteria:**
 - ✅ UI scales properly on all screen sizes
@@ -169,161 +103,34 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 ---
 
-### Task 1.3: Orientation Handling
+### Task 1.3: Orientation Handling ✅ COMPLETED (REVISED)
 
-**Files:** `game.js`, `styles.css`
+**Files:** `game.js`
 
-**Implementation Details:**
-
-1. **Add orientation lock suggestion (iOS)**
-
-   **File:** `game.js` - Add to constructor
-   ```javascript
-   // Request landscape orientation on mobile
-   if (screen.orientation && screen.orientation.lock) {
-       screen.orientation.lock('landscape').catch(() => {
-           // Orientation lock not supported, that's ok
-       });
-   }
-   ```
-
-2. **Add orientation warning overlay**
-
-   **File:** New method in `game.js`
-   ```javascript
-   createOrientationWarning() {
-       const warning = document.createElement('div');
-       warning.id = 'orientation-warning';
-       warning.style.display = 'none';
-       warning.innerHTML = `
-           <div style="...">
-               <p>Please rotate your device to landscape</p>
-               <div style="...">📱 → 📱</div>
-           </div>
-       `;
-       document.body.appendChild(warning);
-
-       // Show/hide based on orientation
-       const checkOrientation = () => {
-           if (window.innerWidth < window.innerHeight && window.innerWidth < 768) {
-               warning.style.display = 'flex';
-           } else {
-               warning.style.display = 'none';
-           }
-       };
-
-       window.addEventListener('resize', checkOrientation);
-       checkOrientation();
-   }
-   ```
-
-3. **Adapt table/camera for portrait if needed**
-   - Alternative: Scale table to fit portrait viewport
-   - Adjust camera position based on aspect ratio
-   - Keep as enhancement for later
-
-**Testing Requirements:**
-- Test portrait/landscape transitions
-- Verify warning appears in portrait on mobile
-- Verify game playable in landscape
+**Decision:** Orientation lock and portrait warning overlay were initially implemented but then removed. The game should be playable in both portrait and landscape — no forced orientation.
 
 **Success Criteria:**
-- ✅ Orientation warning shows in portrait on mobile
-- ✅ Game works optimally in landscape
+- ✅ Game playable in both portrait and landscape
 - ✅ No broken layout on orientation change
 
 ---
 
-### Task 1.4: Performance Testing & Optimization
+### Task 1.4: Performance Testing & Optimization ✅ COMPLETED
 
 **Files:** `game.js`
 
-**Implementation Details:**
+**What was implemented:**
 
-1. **Add FPS monitoring**
+1. **Device capability detection** — `detectDeviceCapabilities()` checks UA for mobile + `hardwareConcurrency`/`deviceMemory` for low-end classification
+2. **Adaptive quality** — `applyQualitySettings()` disables shadows on low-end devices, caps pixel ratio at 1.5 on mobile (full `devicePixelRatio` on desktop)
+3. **Debug FPS counter** — Add `?debug` to URL to show a live FPS counter (green monospace, top-left). Updates every second in the animate loop.
 
-   **File:** `game.js` - Add to constructor
-   ```javascript
-   // Development mode FPS counter
-   this.fpsCounter = {
-       frames: 0,
-       lastTime: performance.now(),
-       fps: 60,
-       element: null
-   };
-
-   if (window.location.search.includes('debug')) {
-       this.createFPSCounter();
-   }
-   ```
-
-2. **Detect and adapt to low-end devices**
-   ```javascript
-   detectDeviceCapabilities() {
-       const canvas = document.createElement('canvas');
-       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-
-       // Check for performance hints
-       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-       const isLowEnd = navigator.hardwareConcurrency <= 4 ||
-                        navigator.deviceMemory <= 4;
-
-       return {
-           isMobile,
-           isLowEnd,
-           supportsWebGL: !!gl
-       };
-   }
-   ```
-
-3. **Adaptive quality settings**
-   ```javascript
-   applyQualitySettings(deviceInfo) {
-       if (deviceInfo.isLowEnd || deviceInfo.isMobile) {
-           // Reduce shadow quality
-           this.renderer.shadowMap.enabled = !deviceInfo.isLowEnd;
-
-           // Disable antialiasing on low-end
-           if (deviceInfo.isLowEnd) {
-               this.renderer.antialias = false;
-           }
-
-           // Lower pixel ratio
-           this.renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio));
-       } else {
-           this.renderer.setPixelRatio(window.devicePixelRatio);
-       }
-   }
-   ```
-
-4. **Add WebGL capability detection**
-   ```javascript
-   checkWebGLSupport() {
-       if (!this.detectDeviceCapabilities().supportsWebGL) {
-           // Show error overlay
-           document.body.innerHTML = `
-               <div style="...">
-                   <h1>WebGL Not Supported</h1>
-                   <p>Your browser doesn't support WebGL, which is required for this game.</p>
-                   <p>Please use a modern browser like Chrome, Firefox, or Safari.</p>
-               </div>
-           `;
-           return false;
-       }
-       return true;
-   }
-   ```
-
-**Testing Requirements:**
-- Test on low-end Android devices (2-3 years old)
-- Test on older iPhones (iPhone 8, XR)
-- Monitor frame rate during gameplay
-- Verify smooth gameplay (≥30 FPS minimum)
+**Note:** WebGL detection was skipped — if the browser doesn't support WebGL, the Three.js renderer constructor already throws, and virtually all target browsers support it.
 
 **Success Criteria:**
-- ✅ Game runs at 30+ FPS on low-end devices
-- ✅ Graceful fallback when WebGL unsupported
+- ✅ Game runs at 30+ FPS on low-end devices (shadows off, capped pixel ratio)
 - ✅ Adaptive quality maintains playability
+- ✅ FPS monitoring available via `?debug`
 
 ---
 
@@ -331,93 +138,69 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 **Priority:** HIGH - Improves UX and maintainability
 **Estimated Effort:** 6-8 hours
-**Status:** NOT STARTED
+**Status:** COMPLETED
 
-### Task 2.1: Physics Optimization
+### Task 2.1: Physics Optimization ✅ COMPLETED
 
 **File:** `game.js`
-**Location:** Constructor physics setup (lines 37-52)
 
-**Implementation Details:**
+**What was implemented (ghost collision fix + performance):**
 
-1. **Upgrade Broadphase Algorithm**
+1. **SAPBroadphase** — Replaced `NaiveBroadphase` (O(n²)) with `SAPBroadphase` (O(n log n)). At level 10 with 55 walls, this cuts broadphase checks from ~1,500 to ~300.
 
-   Current (line 48):
-   ```javascript
-   broadphase: new CANNON.NaiveBroadphase()
-   ```
+2. **Event-based collision detection with removal queue** — Root cause of ghost collisions: the old approach polled `world.contacts` AFTER `world.step()`, meaning the physics solver had already applied bounce impulses before we could remove the wall body. Now:
+   - `ballBody.addEventListener('collide', ...)` fires DURING `world.step()` and immediately marks `wall.removing = true` + queues the wall
+   - `processWallRemovals()` runs BETWEEN substeps, removing bodies from the world before the next `world.step()` can generate another contact
+   - A `removedBodies` Set (tracking body IDs) prevents any ghost processing from stale cannon-es internal caches
 
-   New:
-   ```javascript
-   broadphase: new CANNON.SAPBroadphase(this.world)
-   ```
+3. **Contact material cleanup** — `createRandomWalls()` now removes previous level's 3 `ContactMaterial` objects before adding new ones. Previously these accumulated indefinitely (3 per level, never removed).
 
-   **Rationale:**
-   - NaiveBroadphase: O(n²) - checks every body against every other body
-   - SAPBroadphase (Sweep and Prune): O(n log n) - much better for many walls
-   - At level 10: 55 walls = 1,485 checks (Naive) vs ~300 checks (SAP)
-
-2. **Enable physics body sleeping optimization**
-
-   Current (line 47):
-   ```javascript
-   allowSleep: true,
-   ```
-
-   Add sleep parameters to ball body (line 177):
-   ```javascript
-   this.ballBody = new CANNON.Body({
-       mass: 1,
-       shape: new CANNON.Sphere(ballRadius),
-       position: new CANNON.Vec3(0, ballRadius, 0),
-       material: new CANNON.Material(),
-       linearDamping: 0.38,
-       angularDamping: 0.35,
-       sleepSpeedLimit: 0.1,      // Sleep when slower than 0.1 units/s
-       sleepTimeLimit: 0.5         // Sleep after 0.5s of slow movement
-   });
-   ```
-
-3. **Optimize collision checking**
-
-   Current approach (lines 441-457): Iterates all contacts every substep
-
-   Alternative approach using collision events:
-   ```javascript
-   // In createBall() method
-   this.ballBody.addEventListener('collide', (event) => {
-       const wall = this.walls.find(w => w.body === event.body);
-       if (wall && !wall.removing) {
-           const impactPos = this.ballBody.position.clone();
-           this.removeWall(wall, impactPos);
-       }
-   });
-   ```
-
-   **Trade-off:** Event-based is cleaner but requires careful timing with substeps
-   **Recommendation:** Implement and A/B test both approaches
-
-**Performance Target:**
-- Maintain 60 FPS up to level 30 (160+ walls)
-- Current bottleneck likely around level 20-25
-
-**Testing Requirements:**
-- Performance test at levels 1, 10, 20, 30, 50
-- Monitor physics update time vs render time
-- Test with Chrome DevTools Performance profiler
+4. **Ball sleep parameters** — `sleepSpeedLimit: 0.1`, `sleepTimeLimit: 0.5` — ball auto-sleeps after 0.5s below 0.1 units/s, reducing physics work when idle.
 
 **Success Criteria:**
-- ✅ 60 FPS maintained at level 30 (desktop)
-- ✅ 30+ FPS maintained at level 30 (mobile)
+- ✅ No ghost wall collisions (event-based detection + removal queue + removedBodies Set)
+- ✅ Better broadphase performance at high levels (SAPBroadphase)
+- ✅ No contact material memory leak across levels
 - ✅ Physics sleep working correctly
 
 ---
 
-### Task 2.2: Configuration Extraction
+### Task 2.2: Configuration Extraction ✅ COMPLETED
 
 **Files:** New `config.js`, modify `game.js`
 
-**Implementation Details:**
+**What was implemented:**
+
+1. **Created `config.js`** — Single source of truth for all game constants, organized into categories:
+   - `GAME` — Wall counts, shots, level progression
+   - `COLORS` — All hex colors (Three.js) and CSS color strings
+   - `PHYSICS` — Gravity, timesteps, damping, friction, restitution, ball/cushion/wall contact materials
+   - `DIMENSIONS` — Table, wall, ball sizes, spawn area bounds
+   - `CAMERA` — FOV, clipping planes, position, fog, orbit damping
+   - `AIMING` — Impulse limits, touch/mouse hit radii
+   - `EFFECTS` — Fade durations, impact ring geometry, animation scales, level delay
+   - `WALL_TYPES` — Array with cumulative probability thresholds, colors, and type labels
+   - `LIGHTING` — All light colors, intensities, positions, shadow config
+   - `MATERIALS` — Ball/wall shininess, emissive intensity
+   - `QUALITY` — Device detection thresholds, mobile pixel ratio cap
+
+2. **Refactored `game.js`** — All magic numbers replaced with `CONFIG.*` references:
+   - Removed `lil-gui` import (unused), added `import { CONFIG } from './config.js'`
+   - Removed instance properties that just stored constants (`this.baseWallCount`, `this.PHYSICS_DT`, `this.BULLET_SAFE_DISTANCE`, `this.MIN_STEP_DT`, `this.MAX_SUBSTEPS`, `this.maxImpulse`, `this.impulseMultiplier`)
+   - `animate()` destructures physics constants at the top for clean hot-loop usage
+   - `setupLighting()` uses `const L = CONFIG.LIGHTING` alias for readability
+   - `spawnImpactEffect()` / `updateImpactEffects()` use `const E = CONFIG.EFFECTS` alias
+   - Wall type selection now uses `CONFIG.WALL_TYPES.find(wt => roll < wt.threshold)` with a `materialMap` lookup instead of chained if/else
+   - Boundary wall positions derived from `TABLE_WIDTH / 2` and `TABLE_DEPTH / 2` instead of hardcoded 5 / 2.5
+
+**Success Criteria:**
+- ✅ All magic numbers extracted to config
+- ✅ Game behavior unchanged
+- ✅ Config file well-organized by category
+
+---
+
+**Previous plan details (for reference):**
 
 1. **Create configuration file**
 
@@ -434,15 +217,15 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
        // Visual Constants
        COLORS: {
-           BACKGROUND: 0x362F4F,
-           TABLE: 0x008BFF,
-           BALL: 0xFFD700,
-           AIM_LINE: 0xE4FF30,
+           BACKGROUND: '#362F4F',
+           TABLE: '#008BFF',
+           BALL: '#E4FF30',
+           AIM_LINE: '#E4FF30',
            UI_TEXT: '#E4FF30',
 
-           WALL_MINT: 0x00FF9C,
-           WALL_LIME: 0xE4FF30,
-           WALL_MAGENTA: 0xFF5FCF,
+           WALL_MINT: '#00FF9C',
+           WALL_LIME: 'rgb(255, 145, 48)',
+           WALL_MAGENTA: '#FF5FCF',
 
            IMPACT_RING: 0x008BFF,
 
@@ -557,11 +340,31 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 ---
 
-### Task 2.3: Error Handling & Robustness
+### Task 2.3: Error Handling & Robustness ✅ COMPLETED
 
-**File:** `game.js`
+**Files:** `game.js`, `index.html`, `styles.css`
 
-**Implementation Details:**
+**What was implemented:**
+
+1. **WebGL context loss handling** — `setupContextLossHandling()` listens for `webglcontextlost` / `webglcontextrestored` events. On loss: sets `isContextLost = true` (stops animation loop), shows error overlay. On restore: clears flag, hides overlay, restarts animation loop.
+
+2. **Try-catch in animation loop** — `animate()` now has an early return if `isContextLost`, and wraps the entire frame body in a try-catch. On error: calls `handleCriticalError()` which stops the loop and shows a "Reload" button overlay.
+
+3. **Resource cleanup on page unload** — `dispose()` method traverses the scene graph to dispose all geometries and materials, removes all event listeners (resize, mouse, touch — stored as `_onResize`, `_onInputStart/Move/End` references), and disposes the WebGL renderer. Triggered via `beforeunload`.
+
+4. **Loading screen** — Static `<div id="loading-screen">` in `index.html` (visible immediately while ES modules load). CSS handles styling with centered text and smooth fade-out transition. `hideLoadingScreen()` fades it out with opacity transition and removes it after 300ms. Called at end of constructor.
+
+5. **Error overlay CSS** — `.error-overlay` class in `styles.css` for context-lost and critical error overlays with consistent styling.
+
+**Success Criteria:**
+- ✅ Graceful handling of WebGL context loss
+- ✅ No memory leaks on page unload (dispose cleans up all resources)
+- ✅ User-friendly error messages with reload option
+- ✅ Loading screen visible during module fetch
+
+---
+
+**Previous plan details (for reference):**
 
 1. **Add WebGL context loss handling**
    ```javascript
@@ -664,11 +467,55 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 ---
 
-### Task 2.4: Code Structure Improvements
+### Task 2.4: Code Structure Improvements ✅ COMPLETED
 
-**Files:** `game.js` → Split into multiple files
+**Files:** `game.js` → Split into modular `src/` directory
 
-**Implementation Details:**
+**What was implemented:**
+
+1. **Modular file structure** — Split monolithic ~1000-line `game.js` into 9 focused modules:
+   ```
+   game.js                         (5-line entry point)
+   src/
+   ├── config.js                   (moved from root)
+   ├── core/
+   │   └── PoolGame.js             (main orchestrator — game state, loop, lighting)
+   ├── physics/
+   │   └── PhysicsWorld.js         (Cannon world, adaptive substep simulation)
+   ├── entities/
+   │   ├── Ball.js                 (ball mesh + body, impulse, clamp, reset)
+   │   ├── Table.js                (table mesh + body + boundary cushion walls)
+   │   └── WallManager.js          (breakable wall lifecycle, fade-out, contact materials)
+   ├── input/
+   │   └── InputManager.js         (mouse/touch aiming with callback-based shooting)
+   ├── effects/
+   │   └── ImpactEffects.js        (impact ring spawn + animation + cleanup)
+   └── ui/
+       ├── HUD.js                  (level/shots/walls display + FPS counter)
+       └── GameOverScreen.js       (game over overlay + restart button)
+   ```
+
+2. **Callback-based communication** — Subsystems are decoupled via dependency injection:
+   - `WallManager.onWallRemoved` → triggers `ImpactEffects.spawn()`
+   - `WallManager.onAllCleared` → triggers `PoolGame.nextLevel()`
+   - `WallManager.onCountChanged` → triggers `PoolGame.updateHUD()`
+   - `InputManager.onShoot` → triggers `PoolGame.onShoot(direction, magnitude)`
+   - `InputManager.canShoot` → queries game state (not game over, shots > 0)
+   - `InputManager.getBallPosition` → queries ball mesh position
+
+3. **JSDoc comments** — Added to all exported classes and key methods.
+
+4. **Clean orchestrator** — `PoolGame.animate()` is now 10 lines: physics update, ball clamp/sync, effects update, render. All complexity lives in the subsystems.
+
+**Success Criteria:**
+- ✅ Clear separation of concerns (physics, input, entities, effects, UI)
+- ✅ Each module has a single responsibility
+- ✅ PoolGame is a thin orchestrator
+- ✅ No circular dependencies
+
+---
+
+**Previous plan details (for reference):**
 
 1. **Create modular file structure**
    ```
@@ -1880,37 +1727,7 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 - ✅ Graceful degradation on desktop
 - ✅ Share text appealing
 
----
 
-### Task 5.4: Analytics & Telemetry (Optional)
-
-**Implementation Details:**
-
-1. **Add privacy-friendly analytics**
-
-   Options:
-   - **Plausible Analytics** (privacy-friendly, GDPR compliant)
-   - **Simple Analytics** (minimalist, privacy-focused)
-   - **Self-hosted Matomo** (full control)
-
-   **Recommendation:** Plausible (easiest, respects privacy)
-
-2. **Track key events**
-   ```javascript
-   // Track game started
-   plausible('Game Started');
-
-   // Track level reached
-   plausible('Level Reached', { props: { level: this.level } });
-
-   // Track game over
-   plausible('Game Over', { props: {
-       level: this.level,
-       shots_used: 6 - this.shotsRemaining
-   }});
-   ```
-
-**Note:** Only add if you plan to iterate based on player data
 
 ---
 
