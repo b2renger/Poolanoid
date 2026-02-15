@@ -112,7 +112,7 @@ export class WallManager {
                 color,
                 shininess: CONFIG.MATERIALS.WALL_SHININESS,
                 emissive: isPowerUp ? color : 0x000000,
-                emissiveIntensity: isPowerUp ? 0.1 : 0
+                emissiveIntensity: isPowerUp ? (type === 'bomb' ? 0.7 : 0.5) : 0
             }));
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -211,9 +211,13 @@ export class WallManager {
     /** Update power-up wall glow animation. Call from game loop. */
     updatePowerupGlow(time) {
         if (this.powerupWalls.length === 0) return;
-        const intensity = 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(time * 0.003));
+        const wave = 0.5 + 0.5 * Math.sin(time * 0.003);
         for (const wall of this.powerupWalls) {
-            wall.mesh.material.emissiveIntensity = intensity;
+            if (wall.type === 'bomb') {
+                wall.mesh.material.emissiveIntensity = 0.5 + 0.7 * wave;
+            } else {
+                wall.mesh.material.emissiveIntensity = 0.3 + 0.5 * wave;
+            }
         }
     }
 

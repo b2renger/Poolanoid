@@ -3,8 +3,8 @@ export const CONFIG = {
     GAME: {
         BASE_WALL_COUNT: 10,
         WALLS_PER_LEVEL: 5,
-        BASE_SHOTS: 5,
-        EXTRA_SHOTS_PER_LEVEL: 1
+        BASE_SHOTS: 7,
+        EXTRA_SHOTS_PER_LEVEL: 0
     },
 
     // Colors (hex numbers for Three.js, strings for CSS)
@@ -98,7 +98,10 @@ export const CONFIG = {
         IMPACT_RING_OPACITY: 0.4,
         IMPACT_SCALE_START: 0.01,
         IMPACT_SCALE_RANGE: 0.9,
-        NEXT_LEVEL_DELAY: 1000
+        NEXT_LEVEL_DELAY: 1000,
+        FLASH_INTENSITY: 3,
+        FLASH_DISTANCE: 4,
+        FLASH_DURATION: 120,
     },
 
     // Wall behavior types (velocity effects applied in code; restitution uniform)
@@ -272,7 +275,7 @@ export const CONFIG = {
     // Material Properties
     MATERIALS: {
         BALL_SHININESS: 500,
-        BALL_EMISSIVE_INTENSITY: 10.58,
+        BALL_EMISSIVE_INTENSITY: 1.5,
         WALL_SHININESS: 100
     },
 
@@ -293,6 +296,27 @@ export const CONFIG = {
         GAME_OVER_STAGGER: 0.2,
         GAME_OVER_NOTE_DURATION: 0.4,
         GAME_OVER_GAIN: 0.7,
+    },
+
+    // Particles (wall-break bursts)
+    PARTICLES: {
+        COUNT: 14,
+        BOMB_COUNT: 30,
+        SPEED_MIN: 1.0,
+        SPEED_MAX: 3.0,
+        BOMB_SPEED_MAX: 4.5,
+        LIFETIME_MIN: 0.4,
+        LIFETIME_MAX: 0.8,
+        SIZE: 0.06,
+        GRAVITY: -4,
+        DAMPING: 0.97,
+    },
+
+    // Bloom post-processing
+    BLOOM: {
+        STRENGTH: 0.5,
+        RADIUS: 0.4,
+        THRESHOLD: 0.6,
     },
 
     // Quality / Device Detection

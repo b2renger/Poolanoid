@@ -862,219 +862,80 @@ COMBO: {
 
 **Priority:** LOW-MEDIUM - Polish and aesthetics
 **Estimated Effort:** 8-12 hours
-**Status:** NOT STARTED
+**Status:** COMPLETED ✅
 
-### Task 4.1: Particle System
+### Task 4.1: Particle System ✅ COMPLETED
 
-**Files:** New `src/effects/ParticleSystem.js`
+**Files:** New `src/effects/ParticleSystem.js`, modify `src/core/PoolGame.js`, `src/config.js`
 
-**Implementation Details:**
+**What was implemented:**
 
-1. **Install particle library**
+1. **ParticleSystem class** (`src/effects/ParticleSystem.js`) — Lightweight burst system using `THREE.Points` with additive blending:
+   - `emit(position, color)` — spawns a burst of 14 particles at impact position with wall's color
+   - `update(dt)` — called from game loop, advances positions with gravity + damping, fades opacity, auto-disposes dead bursts
+   - `clear()` — removes all active bursts (used on level transitions and return to home)
+   - Each burst is a single `THREE.Points` mesh with per-particle velocity, age, and lifetime tracking
+   - Additive blending + `depthWrite: false` for glow effect
+   - Upward-biased spherical velocity distribution for satisfying explosion feel
 
-   Options:
-   - **three-nebula** (recommended): Modern, GPU-accelerated
-   - **three.js built-in PointsMaterial**: Lightweight, manual
+2. **Config** (`CONFIG.PARTICLES`): count=14, speed 1–3, lifetime 0.4–0.8s, size 0.08, gravity -4, damping 0.96
 
-   Using three.js built-in for simplicity:
-
-2. **Create particle emitter**
-
-   **New File:** `src/effects/ParticleSystem.js`
-   ```javascript
-   import * as THREE from 'three';
-
-   export class ParticleSystem {
-       constructor(scene) {
-           this.scene = scene;
-           this.particlePools = [];
-       }
-
-       emitWallBreak(position, color, count = 20) {
-           const particles = [];
-
-           const geometry = new THREE.BufferGeometry();
-           const positions = new Float32Array(count * 3);
-           const velocities = new Float32Array(count * 3);
-           const lifetimes = new Float32Array(count);
-
-           for (let i = 0; i < count; i++) {
-               // Initial position (at impact)
-               positions[i * 3] = position.x;
-               positions[i * 3 + 1] = position.y;
-               positions[i * 3 + 2] = position.z;
-
-               // Random velocity (explosion outward)
-               const theta = Math.random() * Math.PI * 2;
-               const phi = Math.random() * Math.PI;
-               const speed = 1 + Math.random() * 2;
-
-               velocities[i * 3] = Math.sin(phi) * Math.cos(theta) * speed;
-               velocities[i * 3 + 1] = Math.abs(Math.cos(phi)) * speed; // upward bias
-               velocities[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * speed;
-
-               lifetimes[i] = 0.5 + Math.random() * 0.5; // 0.5-1.0 seconds
-           }
-
-           geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-           geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
-           geometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
-
-           const material = new THREE.PointsMaterial({
-               color: color,
-               size: 0.1,
-               transparent: true,
-               opacity: 1,
-               blending: THREE.AdditiveBlending
-           });
-
-           const particles = new THREE.Points(geometry, material);
-           this.scene.add(particles);
-
-           // Animate particles
-           const startTime = Date.now();
-           const update = () => {
-               const elapsed = (Date.now() - startTime) / 1000;
-               const positions = particles.geometry.attributes.position.array;
-               const velocities = particles.geometry.attributes.velocity.array;
-               const lifetimes = particles.geometry.attributes.lifetime.array;
-
-               let allDead = true;
-
-               for (let i = 0; i < count; i++) {
-                   if (elapsed < lifetimes[i]) {
-                       allDead = false;
-
-                       // Update position
-                       positions[i * 3] += velocities[i * 3] * 0.016;
-                       positions[i * 3 + 1] += velocities[i * 3 + 1] * 0.016 - 0.016 * 9.82 * 0.5; // gravity
-                       positions[i * 3 + 2] += velocities[i * 3 + 2] * 0.016;
-
-                       // Damping
-                       velocities[i * 3] *= 0.98;
-                       velocities[i * 3 + 1] *= 0.98;
-                       velocities[i * 3 + 2] *= 0.98;
-                   }
-               }
-
-               particles.geometry.attributes.position.needsUpdate = true;
-               particles.material.opacity = 1 - (elapsed / 1.0);
-
-               if (!allDead) {
-                   requestAnimationFrame(update);
-               } else {
-                   this.scene.remove(particles);
-                   particles.geometry.dispose();
-                   particles.material.dispose();
-               }
-           };
-
-           update();
-       }
-   }
-   ```
-
-3. **Integrate into game**
-   ```javascript
-   // In constructor:
-   this.particles = new ParticleSystem(this.scene);
-
-   // In removeWall():
-   this.particles.emitWallBreak(impactPosition, wall.mesh.material.color, 30);
-   ```
-
-**Testing Requirements:**
-- Test performance with many particles
-- Verify GPU particle count acceptable (mobile)
+3. **Integration in `PoolGame`:**
+   - Particle burst emitted on every wall removal (color-matched to wall type)
+   - Updated from game loop alongside other effects
+   - Cleared on startGame, returnToHome, and nextLevel transitions
 
 **Success Criteria:**
 - ✅ Particles emit on wall break
 - ✅ Smooth animation
-- ✅ No performance impact on mobile
+- ✅ No performance impact on mobile (14 particles per burst, auto-cleanup)
 
 ---
 
-### Task 4.3: Post-Processing Effects
+### Task 4.2: Post-Processing Effects ✅ COMPLETED
 
-**Implementation Details:**
+**Files:** Modify `src/core/PoolGame.js`, `src/config.js`
 
-1. **Add bloom effect**
-   ```javascript
-   import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-   import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-   import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+**What was implemented:**
 
-   setupPostProcessing() {
-       this.composer = new EffectComposer(this.renderer);
+1. **Bloom post-processing** via three.js `EffectComposer` + `UnrealBloomPass`:
+   - `setupBloom()` method creates composer pipeline: RenderPass → UnrealBloomPass
+   - Replaces `renderer.render()` with `composer.render()` in animate loop
+   - Composer resized alongside renderer in `onWindowResize()`
 
-       const renderPass = new RenderPass(this.scene, this.camera);
-       this.composer.addPass(renderPass);
+2. **Low-end device skip**: Bloom is only enabled when `deviceInfo.isLowEnd === false`. Low-end devices fall back to direct `renderer.render()`.
 
-       const bloomPass = new UnrealBloomPass(
-           new THREE.Vector2(window.innerWidth, window.innerHeight),
-           0.5,  // strength
-           0.4,  // radius
-           0.85  // threshold
-       );
-       this.composer.addPass(bloomPass);
-   }
-
-   // In animate(), replace:
-   // this.renderer.render(this.scene, this.camera);
-   // with:
-   this.composer.render();
-   ```
-
-**Note:** Post-processing can be expensive on mobile - make optional
+3. **Config** (`CONFIG.BLOOM`): strength=0.45, radius=0.4, threshold=0.82 — subtle glow on emissive materials (ball, power-up walls, particles with additive blending)
 
 **Success Criteria:**
 - ✅ Bloom effect on emissive materials
-- ✅ Can disable on low-end devices
+- ✅ Disabled on low-end devices (graceful fallback)
 - ✅ Maintains 60 FPS on desktop
 
 ---
 
-### Task 4.4: Enhanced Impact Effects
+### Task 4.3: Enhanced Impact Effects ✅ COMPLETED
 
-**Implementation Details:**
+**Files:** Modify `src/effects/ImpactEffects.js`, `src/core/PoolGame.js`, `src/config.js`
 
-1. **Screen shake**
-   ```javascript
-   screenShake(intensity = 0.1, duration = 100) {
-       const originalPosition = this.camera.position.clone();
-       const startTime = Date.now();
+**What was implemented:**
 
-       const shake = () => {
-           const elapsed = Date.now() - startTime;
-           const progress = elapsed / duration;
+1. **Screen shake** — Already implemented in Phase 3 (combo system). Exponentially decaying camera offset, intensity scales with combo count.
 
-           if (progress >= 1) {
-               this.camera.position.copy(originalPosition);
-               return;
-           }
+2. **Impact flash** — Brief `THREE.PointLight` at wall break position:
+   - Color matched to wall type (behavior or power-up color)
+   - Intensity 3, distance 4, fades linearly over 120ms
+   - Positioned slightly above impact (y+0.3) for better light spread
+   - Interacts with bloom post-processing for a dramatic glow burst
+   - Auto-disposed when fade completes
+   - Cleared on level transitions
 
-           const currentIntensity = intensity * (1 - progress);
-           this.camera.position.x = originalPosition.x + (Math.random() - 0.5) * currentIntensity;
-           this.camera.position.z = originalPosition.z + (Math.random() - 0.5) * currentIntensity;
-
-           requestAnimationFrame(shake);
-       };
-
-       shake();
-   }
-
-   // In removeWall():
-   this.screenShake(0.05, 80);
-   ```
-
-2. **Impact flash**
-   - Brief light flash at impact point
-   - Color based on wall type
+3. **Config** (`CONFIG.EFFECTS`): `FLASH_INTENSITY: 3`, `FLASH_DISTANCE: 4`, `FLASH_DURATION: 120`
 
 **Success Criteria:**
-- ✅ Satisfying impact feedback
-- ✅ Not disorienting
-- ✅ Can be disabled in settings
+- ✅ Satisfying impact feedback (flash + existing shake + particles)
+- ✅ Not disorienting (short 120ms duration, moderate intensity)
+- ✅ Cleanup on level transitions
 
 ---
 

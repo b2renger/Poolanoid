@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 
 /**
- * Manages impact ring effects spawned when the ball hits a breakable wall.
+ * Manages impact ring effects and flash lights spawned when the ball hits a breakable wall.
  */
 export class ImpactEffects {
     constructor(scene) {
         this.scene = scene;
         this.effects = [];
+        this.flashes = [];
     }
 
     spawn(position) {
@@ -29,6 +30,16 @@ export class ImpactEffects {
         this.effects.push({ ring, startTime: Date.now(), duration: E.IMPACT_DURATION });
     }
 
+    /** Spawn a brief point light flash at impact position with wall color. */
+    flash(position, color) {
+        const E = CONFIG.EFFECTS;
+        const light = new THREE.PointLight(color, E.FLASH_INTENSITY, E.FLASH_DISTANCE);
+        light.position.copy(position);
+        light.position.y += 0.3; // slightly above impact
+        this.scene.add(light);
+        this.flashes.push({ light, startTime: Date.now(), duration: E.FLASH_DURATION, intensity: E.FLASH_INTENSITY });
+    }
+
     update() {
         const now = Date.now();
         const E = CONFIG.EFFECTS;
@@ -46,6 +57,19 @@ export class ImpactEffects {
                 this.effects.splice(i, 1);
             }
         }
+
+        // Fade out flash lights
+        for (let i = this.flashes.length - 1; i >= 0; i--) {
+            const f = this.flashes[i];
+            const progress = (now - f.startTime) / f.duration;
+            if (progress >= 1) {
+                this.scene.remove(f.light);
+                f.light.dispose();
+                this.flashes.splice(i, 1);
+            } else {
+                f.light.intensity = f.intensity * (1 - progress);
+            }
+        }
     }
 
     clear() {
@@ -55,5 +79,10 @@ export class ImpactEffects {
             eff.ring.material.dispose();
         });
         this.effects = [];
+        this.flashes.forEach(f => {
+            this.scene.remove(f.light);
+            f.light.dispose();
+        });
+        this.flashes = [];
     }
 }

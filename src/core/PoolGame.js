@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import * as CANNON from 'cannon';
 import { CONFIG } from '../config.js';
 import { PhysicsWorld } from '../physics/PhysicsWorld.js';
@@ -14,6 +17,7 @@ import { GameOverScreen } from '../ui/GameOverScreen.js';
 import { HomeScreen } from '../ui/HomeScreen.js';
 import { StorageManager } from '../storage/StorageManager.js';
 import { AudioManager } from '../audio/AudioManager.js';
+import { ParticleSystem } from '../effects/ParticleSystem.js';
 
 /**
  * Main game controller — orchestrates physics, rendering, input, and game state.
@@ -52,6 +56,12 @@ export class PoolGame {
         this.deviceInfo = this.detectDeviceCapabilities();
         this.applyQualitySettings();
 
+        // Post-processing (skip on low-end devices)
+        this.composer = null;
+        if (!this.deviceInfo.isLowEnd) {
+            this.setupBloom();
+        }
+
         // Camera
         this.camera.position.set(0, CONFIG.CAMERA.POSITION_Y, 0);
         this.camera.lookAt(0, 0, 0);
@@ -86,6 +96,7 @@ export class PoolGame {
         // Effects
         this.effects = new ImpactEffects(this.scene);
         this.floatingText = new FloatingText(this.scene);
+        this.particles = new ParticleSystem(this.scene);
 
         // Extra balls (from multi-ball power-up)
         this.extraBalls = [];
@@ -94,6 +105,16 @@ export class PoolGame {
         this.wallManager = new WallManager(this.scene, this.physics);
         this.wallManager.onWallRemoved = (pos, type, isPowerUp) => {
             this.effects.spawn(pos);
+            const color = isPowerUp ? CONFIG.POWERUPS[type].color : CONFIG.WALL_BEHAVIORS[type].color;
+            this.effects.flash(pos, color);
+            if (type === 'bomb') {
+                this.particles.emit(pos, color, {
+                    count: CONFIG.PARTICLES.BOMB_COUNT,
+                    speedMax: CONFIG.PARTICLES.BOMB_SPEED_MAX
+                });
+            } else {
+                this.particles.emit(pos, color);
+            }
             this.scoreWall(type, isPowerUp, pos);
         };
         this.wallManager.onAllCleared = () => this.nextLevel();
@@ -168,6 +189,7 @@ export class PoolGame {
         this.clearExtraBalls();
         this.effects.clear();
         this.floatingText.clear();
+        this.particles.clear();
         this.wallManager.createWalls(this.level, this.ball.body.material);
         this.updateAimLineScale();
         this.hud.show();
@@ -182,6 +204,7 @@ export class PoolGame {
         this.wallManager.clearAll();
         this.effects.clear();
         this.floatingText.clear();
+        this.particles.clear();
         this.ball.reset();
         this.hud.hide();
         this.homeScreen.refresh();
@@ -269,6 +292,7 @@ export class PoolGame {
                 this.updateExtraBalls();
                 this.effects.update();
                 this.floatingText.update();
+                this.particles.update(1 / 60);
                 this.wallManager.updatePowerupGlow(time);
 
                 // Deferred game-over: wait for ball + extra balls to settle
@@ -310,7 +334,11 @@ export class PoolGame {
                 this.shakeIntensity = 0;
             }
 
-            this.renderer.render(this.scene, this.camera);
+            if (this.composer) {
+                this.composer.render();
+            } else {
+                this.renderer.render(this.scene, this.camera);
+            }
 
             // Restore camera after render so OrbitControls isn't polluted
             if (shakeX || shakeZ) {
@@ -336,6 +364,7 @@ export class PoolGame {
         setTimeout(() => {
             this.effects.clear();
             this.floatingText.clear();
+            this.particles.clear();
             this.wallManager.createWalls(this.level, this.ball.body.material);
             this.updateAimLineScale();
             this.updateHUD();
@@ -556,6 +585,7 @@ export class PoolGame {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 
     detectDeviceCapabilities() {
@@ -573,6 +603,17 @@ export class PoolGame {
         this.renderer.setPixelRatio(
             isMobile ? Math.min(CONFIG.QUALITY.MOBILE_MAX_PIXEL_RATIO, window.devicePixelRatio) : window.devicePixelRatio
         );
+    }
+
+    setupBloom() {
+        const B = CONFIG.BLOOM;
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        const bloom = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            B.STRENGTH, B.RADIUS, B.THRESHOLD
+        );
+        this.composer.addPass(bloom);
     }
 
     setupContextLossHandling() {
