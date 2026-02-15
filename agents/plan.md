@@ -665,22 +665,33 @@ These are rarer walls that trigger a one-time effect when destroyed. They get a 
 
 Power-up walls give **no score points** — their triggered effect IS the reward.
 
-#### Level-scaled spawn rates
+#### Difficulty progression
 
-Special wall probability increases with level. `CONFIG.WALL_TYPES` becomes a function or is computed per level:
+All difficulty scaling is driven by `CONFIG.GAME` and `CONFIG.WALL_SPAWN_RATES`.
 
-```
-Level 1–2:   Normal 80%, Extra-bounce 10%, Low-bounce 10%
-             (no power-ups yet — learn the basics)
+##### Per-level scaling (`CONFIG.GAME`)
 
-Level 3–5:   Normal 70%, Extra-bounce 10%, Low-bounce 10%, Sticky 5%,
-             Extra Shot 4%, Bomb 4%, Multi-Ball 1%
+| Parameter | Formula | Lvl 1 | Lvl 3 | Lvl 5 | Lvl 8 | Lvl 10 |
+|-----------|---------|-------|-------|-------|-------|--------|
+| Walls | `BASE_WALL_COUNT + (lvl-1) * WALLS_PER_LEVEL` | 10 | 20 | 30 | 45 | 55 |
+| Shots | `BASE_SHOTS + (lvl-1) * EXTRA_SHOTS_PER_LEVEL` | 6 | 8 | 10 | 13 | 15 |
+| Aim line | `max(0, 1 - (lvl-1)/(FADE_LEVEL-1))` | 100% | 78% | 56% | 22% | 0% |
 
-Level 6+:    Normal 55%, Extra-bounce 12%, Low-bounce 12%, Sticky 8%,
-             Extra Shot 6%, Bomb 6%, Multi-Ball 4%
-```
+##### Wall type spawn rates (`CONFIG.WALL_SPAWN_RATES`)
 
-Implementation: `WallManager.createWalls(level, ballMaterial)` computes `CONFIG.getWallTypes(level)` which returns the cumulative-threshold array for that level. The existing `roll < threshold` logic works unchanged.
+Three tiers, selected by `maxLevel`. Each tier is a cumulative-threshold array.
+
+| Type | Lvl 1–2 | Lvl 3–5 | Lvl 6+ |
+|------|---------|---------|--------|
+| Extra Bounce | 10% | 10% | 12% |
+| Low Bounce | 10% | 10% | 12% |
+| Sticky | — | 5% | 8% |
+| Extra Shot | — | 4% | 6% |
+| Bomb | — | 4% | 6% |
+| Multi-Ball | — | 1% | 4% |
+| Normal | 80% | 66% | 52% |
+
+Implementation: `WallManager._getSpawnRates(level)` finds the first tier where `level <= maxLevel` and returns its cumulative-threshold array. The existing `roll < threshold` logic works unchanged.
 
 #### Multi-Ball detailed design
 

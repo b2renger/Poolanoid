@@ -17,6 +17,7 @@ export class PhysicsWorld {
 
         this.accumulator = 0;
         this.lastFrameTime = 0;
+        this.timeScale = 1;
     }
 
     /**
@@ -27,7 +28,8 @@ export class PhysicsWorld {
      */
     update(time, ballVelocity, onSubstep) {
         const { DT, MIN_STEP_DT, MAX_SUBSTEPS, BULLET_SAFE_DISTANCE, MAX_FRAME_DELTA } = CONFIG.PHYSICS;
-        const delta = this.lastFrameTime ? Math.min((time - this.lastFrameTime) / 1000, MAX_FRAME_DELTA) : DT;
+        const rawDelta = this.lastFrameTime ? Math.min((time - this.lastFrameTime) / 1000, MAX_FRAME_DELTA) : DT;
+        const delta = rawDelta * this.timeScale;
         this.lastFrameTime = time;
 
         this.accumulator += delta;

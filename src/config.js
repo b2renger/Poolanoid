@@ -3,7 +3,7 @@ export const CONFIG = {
     GAME: {
         BASE_WALL_COUNT: 10,
         WALLS_PER_LEVEL: 5,
-        BASE_SHOTS: 6,
+        BASE_SHOTS: 5,
         EXTRA_SHOTS_PER_LEVEL: 1
     },
 
@@ -58,8 +58,8 @@ export const CONFIG = {
         WALL_HEIGHT: 0.5,
         WALL_THICKNESS: 0.12,
 
-        BALL_RADIUS: 0.15,
-        BALL_SEGMENTS: 32,
+        BALL_RADIUS: 0.17,
+        BALL_SEGMENTS: 16,
 
         BOUNDARY_WALL_THICKNESS: 0.1,
 
@@ -72,7 +72,7 @@ export const CONFIG = {
         FOV: 75,
         NEAR: 0.1,
         FAR: 1000,
-        POSITION_Y: 6,
+        POSITION_Y: 12,
         FOG_NEAR: 8,
         FOG_FAR: 22,
         ORBIT_DAMPING: 0.05
@@ -90,8 +90,8 @@ export const CONFIG = {
 
     // Visual Effects
     EFFECTS: {
-        WALL_FADE_DURATION: 200,
-        IMPACT_DURATION: 120,
+        WALL_FADE_DURATION: 100,
+        IMPACT_DURATION: 20,
         IMPACT_RING_INNER_RADIUS: 0.05,
         IMPACT_RING_OUTER_RADIUS: 0.22,
         IMPACT_RING_SEGMENTS: 12,
@@ -116,38 +116,73 @@ export const CONFIG = {
         multiBall: { color: 0x00BFFF, label: 'Multi-Ball!', count: 2 },
     },
 
-    // Level-scaled wall spawn rates (cumulative probability thresholds)
+    // Level-scaled wall spawn rates
+    //
+    // HOW IT WORKS:
+    //   Each tier applies to levels 1..maxLevel (first matching tier wins).
+    //   `threshold` values are CUMULATIVE (0→1). A random roll in [0,1) picks
+    //   the first entry where roll < threshold.
+    //
+    //   Individual chance = threshold − previous threshold (or 0 for the first).
+    //   The last entry (normal) must always have threshold: 1.00 to catch the rest.
+    //
+    // EXAMPLE — to give extraBounce 15% and lowBounce 10%:
+    //   { threshold: 0.15, type: 'extraBounce' },   // 15%  (0.15 − 0.00)
+    //   { threshold: 0.25, type: 'lowBounce' },      // 10%  (0.25 − 0.15)
+    //   { threshold: 1.00, type: 'normal' },          // 75%  (1.00 − 0.25)
+    //
+    // WALL TYPES:
+    //   Behavior walls (scored, see WALL_BEHAVIORS for colors):
+    //     normal      — standard wall, no velocity effect
+    //     extraBounce — ball speed ×1.25 on hit
+    //     lowBounce   — ball speed ×0.25 on hit
+    //     sticky      — stops the ball completely on hit
+    //   Power-up walls (not scored, see POWERUPS for colors):
+    //     extraShot   — grants +1 shot
+    //     bomb        — destroys nearby walls in radius
+    //     multiBall   — spawns extra balls
+    //
     WALL_SPAWN_RATES: [
         {
-            maxLevel: 2,
+            maxLevel: 2,  // Levels 1–2: introductory, behavior walls only
             types: [
-                { threshold: 0.10, type: 'extraBounce' },
-                { threshold: 0.20, type: 'lowBounce' },
-                { threshold: 1.00, type: 'normal' },
+                { threshold: 0.10, type: 'extraBounce' },  // 10%
+                { threshold: 0.20, type: 'lowBounce' },    // 10%
+                { threshold: 1.00, type: 'normal' },       // 80%
             ]
         },
         {
-            maxLevel: 5,
+            maxLevel: 4,  // Levels 3–4: introduce sticky + bomb
             types: [
-                { threshold: 0.10, type: 'extraBounce' },
-                { threshold: 0.20, type: 'lowBounce' },
-                { threshold: 0.25, type: 'sticky' },
-                { threshold: 0.29, type: 'extraShot' },
-                { threshold: 0.33, type: 'bomb' },
-                { threshold: 0.34, type: 'multiBall' },
-                { threshold: 1.00, type: 'normal' },
+                { threshold: 0.15, type: 'extraBounce' },  // 15%
+                { threshold: 0.30, type: 'lowBounce' },    // 15%
+                { threshold: 0.45, type: 'sticky' },       // 15%
+                { threshold: 0.55, type: 'bomb' },         // 10%
+                { threshold: 1.00, type: 'normal' },       // 45%
             ]
         },
         {
-            maxLevel: Infinity,
+            maxLevel: 6,  // Levels 5–6: add extraShot + multiBall
             types: [
-                { threshold: 0.12, type: 'extraBounce' },
-                { threshold: 0.24, type: 'lowBounce' },
-                { threshold: 0.32, type: 'sticky' },
-                { threshold: 0.38, type: 'extraShot' },
-                { threshold: 0.44, type: 'bomb' },
-                { threshold: 0.48, type: 'multiBall' },
-                { threshold: 1.00, type: 'normal' },
+                { threshold: 0.15, type: 'extraBounce' },  // 15%
+                { threshold: 0.30, type: 'lowBounce' },    // 15%
+                { threshold: 0.42, type: 'sticky' },       // 12%
+                { threshold: 0.50, type: 'extraShot' },    //  8%
+                { threshold: 0.58, type: 'bomb' },         //  8%
+                { threshold: 0.62, type: 'multiBall' },    //  4%
+                { threshold: 1.00, type: 'normal' },       // 38%
+            ]
+        },
+        {
+            maxLevel: Infinity,  // Levels 7+: full variety, fewer normals
+            types: [
+                { threshold: 0.12, type: 'extraBounce' },  // 12%
+                { threshold: 0.24, type: 'lowBounce' },    // 12%
+                { threshold: 0.32, type: 'sticky' },       //  8%
+                { threshold: 0.38, type: 'extraShot' },    //  6%
+                { threshold: 0.44, type: 'bomb' },         //  6%
+                { threshold: 0.48, type: 'multiBall' },    //  4%
+                { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
     ],
@@ -158,10 +193,42 @@ export const CONFIG = {
             normal: 1,
             extraBounce: 1,
             lowBounce: 1,
-            sticky: 2,
+            sticky: 4,
         },
-        COMBO_WINDOW: 1500,
-        COMBO_BONUS: [0, 0, 1, 2, 3, 5],
+    },
+
+    // Combo system
+    COMBO: {
+        SETTLE_DELAY: 500,
+        THRESHOLDS: [
+            { min: 3, points: 2,  shots: 0, color: '#E4FF30' },
+            { min: 4, points: 5,  shots: 1, color: '#E4FF30' },
+            { min: 6, points: 10, shots: 1, color: '#008BFF' },
+            { min: 8, points: 20, shots: 2, color: '#FF5FCF' },
+        ],
+    },
+
+    // Screen shake
+    SHAKE: {
+        BASE_INTENSITY: 0.008,
+        COMBO_INTENSITY: 0.003,
+        MAX_INTENSITY: 0.03,
+        DECAY: 14,
+    },
+
+    // Slow-motion
+    SLOW_MO: {
+        MIN_COMBO: 5,
+        TIME_SCALE: 0.5,
+        DURATION: 500,
+    },
+
+    // Level complete zoom
+    LEVEL_ZOOM: {
+        DIP: 1,
+        DIP_DURATION: 300,
+        HOLD_DURATION: 200,
+        RETURN_DURATION: 300,
     },
 
     // Multi-ball power-up
@@ -204,8 +271,8 @@ export const CONFIG = {
 
     // Material Properties
     MATERIALS: {
-        BALL_SHININESS: 100,
-        BALL_EMISSIVE_INTENSITY: 0.18,
+        BALL_SHININESS: 500,
+        BALL_EMISSIVE_INTENSITY: 10.58,
         WALL_SHININESS: 100
     },
 

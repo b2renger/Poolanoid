@@ -24,12 +24,17 @@ export class PoolGame {
         this.level = 1;
         this.score = 0;
         this.combo = 0;
-        this.lastHitTime = 0;
+        this.comboTimer = null;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
         this.ballSettledTime = 0;
         this.isGameOver = false;
         this.isPlaying = false;
         this.isContextLost = false;
+
+        // Effects state
+        this.shakeIntensity = 0;
+        this.slowMoUntil = 0;
+        this.levelZoomStart = 0;
 
         // Renderer
         this.scene = new THREE.Scene();
@@ -141,9 +146,14 @@ export class PoolGame {
         this.level = 1;
         this.score = 0;
         this.combo = 0;
-        this.lastHitTime = 0;
+        clearTimeout(this.comboTimer);
+        this.comboTimer = null;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
         this.ballSettledTime = 0;
+        this.shakeIntensity = 0;
+        this.slowMoUntil = 0;
+        this.levelZoomStart = Date.now();
+        this.physics.timeScale = 1;
         this.isGameOver = false;
         this.isPlaying = true;
         this.ball.reset();
@@ -158,6 +168,8 @@ export class PoolGame {
 
     returnToHome() {
         this.isPlaying = false;
+        clearTimeout(this.comboTimer);
+        this.physics.timeScale = 1;
         this.clearExtraBalls();
         this.wallManager.clearAll();
         this.effects.clear();
@@ -219,6 +231,9 @@ export class PoolGame {
     onShoot(direction, magnitude) {
         this.shotsRemaining--;
         this.ballSettledTime = 0;
+        this.combo = 0;
+        clearTimeout(this.comboTimer);
+        this.comboTimer = null;
         this.ball.applyImpulse(direction, magnitude);
         this.updateHUD();
         // Game-over check is deferred to animate() so the last shot plays out
@@ -231,6 +246,14 @@ export class PoolGame {
 
         try {
             if (this.isPlaying) {
+                // Slow-mo
+                const now = Date.now();
+                if (this.slowMoUntil && now < this.slowMoUntil) {
+                    this.physics.timeScale = CONFIG.SLOW_MO.TIME_SCALE;
+                } else if (this.physics.timeScale !== 1) {
+                    this.physics.timeScale = 1;
+                }
+
                 this.physics.update(time, this.ball.body.velocity, () => this.wallManager.processRemovals());
                 this.ball.clampToTable();
                 this.ball.syncMeshToBody();
@@ -256,8 +279,36 @@ export class PoolGame {
                     }
                 }
             }
+
+            // Level zoom (applied to orbit target Y so it doesn't fight controls)
+            if (this.levelZoomStart) {
+                const zoomY = this.getLevelZoomY(Date.now());
+                this.controls.target.y = 0;
+                this.camera.position.y = zoomY;
+            }
+
             this.controls.update();
+
+            // Screen shake — temporary offset applied after controls, restored after render
+            let shakeX = 0, shakeZ = 0;
+            if (this.shakeIntensity > 0.001) {
+                shakeX = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+                shakeZ = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+                this.camera.position.x += shakeX;
+                this.camera.position.z += shakeZ;
+                this.shakeIntensity *= Math.exp(-CONFIG.SHAKE.DECAY * (1 / 60));
+            } else {
+                this.shakeIntensity = 0;
+            }
+
             this.renderer.render(this.scene, this.camera);
+
+            // Restore camera after render so OrbitControls isn't polluted
+            if (shakeX || shakeZ) {
+                this.camera.position.x -= shakeX;
+                this.camera.position.z -= shakeZ;
+            }
+
             this.hud.updateFPS();
         } catch (error) {
             console.error('Animation loop error:', error);
@@ -270,6 +321,7 @@ export class PoolGame {
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS + (this.level - 1) * CONFIG.GAME.EXTRA_SHOTS_PER_LEVEL;
         this.ball.stop();
         this.clearExtraBalls();
+        this.levelZoomStart = Date.now();
 
         setTimeout(() => {
             this.effects.clear();
@@ -284,6 +336,8 @@ export class PoolGame {
         this.isGameOver = true;
         this.ball.stop();
         this.clearExtraBalls();
+        clearTimeout(this.comboTimer);
+        this.physics.timeScale = 1;
 
         const previousBest = this.storage.getHighScore();
         const isNewBest = !previousBest || this.score > previousBest.score;
@@ -336,30 +390,80 @@ export class PoolGame {
         const points = CONFIG.SCORING.POINTS[type] || 0;
         if (points === 0) return;
 
-        // Combo tracking
-        const now = Date.now();
-        if (now - this.lastHitTime < CONFIG.SCORING.COMBO_WINDOW) {
-            this.combo++;
-        } else {
-            this.combo = 1;
-        }
-        this.lastHitTime = now;
-
-        // Combo bonus
-        const bonusTable = CONFIG.SCORING.COMBO_BONUS;
-        const comboBonus = this.combo < bonusTable.length
-            ? bonusTable[this.combo]
-            : bonusTable[bonusTable.length - 1];
-        const total = points + comboBonus;
-
-        this.score += total;
+        // Award base points immediately
+        this.score += points;
+        this.combo++;
         this.updateHUD();
 
         // Color-coded floating text
         const behavior = CONFIG.WALL_BEHAVIORS[type];
         const colorHex = '#' + behavior.color.toString(16).padStart(6, '0');
-        const label = comboBonus > 0 ? `+${total} (x${this.combo})` : `+${points}`;
-        this.floatingText.spawn(label, position, colorHex);
+        this.floatingText.spawn(`+${points}`, position, colorHex);
+
+        // Screen shake (intensity scales with combo)
+        const S = CONFIG.SHAKE;
+        this.shakeIntensity = Math.min(
+            S.BASE_INTENSITY + this.combo * S.COMBO_INTENSITY,
+            S.MAX_INTENSITY
+        );
+
+        // Slow-mo on high combos
+        if (this.combo >= CONFIG.SLOW_MO.MIN_COMBO) {
+            this.slowMoUntil = Date.now() + CONFIG.SLOW_MO.DURATION;
+        }
+
+        // Restart combo settle timer
+        clearTimeout(this.comboTimer);
+        this.comboTimer = setTimeout(() => this.finalizeCombo(), CONFIG.COMBO.SETTLE_DELAY);
+    }
+
+    finalizeCombo() {
+        if (this.combo < 2) {
+            this.combo = 0;
+            return;
+        }
+
+        // Find highest matching threshold
+        const thresholds = CONFIG.COMBO.THRESHOLDS;
+        let reward = null;
+        for (let i = thresholds.length - 1; i >= 0; i--) {
+            if (this.combo >= thresholds[i].min) {
+                reward = thresholds[i];
+                break;
+            }
+        }
+
+        if (reward) {
+            this.score += reward.points;
+            this.shotsRemaining += reward.shots;
+            this.updateHUD();
+            this.hud.showCombo(this.combo, reward.points, reward.color);
+        }
+
+        this.combo = 0;
+    }
+
+    getLevelZoomY(now) {
+        const elapsed = now - this.levelZoomStart;
+        const Z = CONFIG.LEVEL_ZOOM;
+        const baseY = CONFIG.CAMERA.POSITION_Y;
+        const totalDuration = Z.DIP_DURATION + Z.HOLD_DURATION + Z.RETURN_DURATION;
+
+        if (elapsed >= totalDuration) {
+            this.levelZoomStart = 0;
+            return baseY;
+        }
+
+        if (elapsed < Z.DIP_DURATION) {
+            const t = elapsed / Z.DIP_DURATION;
+            return baseY - Z.DIP * t * t; // ease-in
+        }
+        if (elapsed < Z.DIP_DURATION + Z.HOLD_DURATION) {
+            return baseY - Z.DIP;
+        }
+        const returnElapsed = elapsed - Z.DIP_DURATION - Z.HOLD_DURATION;
+        const t = returnElapsed / Z.RETURN_DURATION;
+        return baseY - Z.DIP * (1 - t * t); // ease-out
     }
 
     spawnExtraBalls(position) {
