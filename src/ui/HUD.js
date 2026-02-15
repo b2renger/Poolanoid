@@ -12,25 +12,29 @@ export class HUD {
     }
 
     createElements() {
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.top = 'calc(20px + env(safe-area-inset-top))';
-        container.style.right = 'calc(20px + env(safe-area-inset-right))';
-        container.style.color = CONFIG.COLORS.UI_TEXT;
+        this.container = document.createElement('div');
+        this.container.style.position = 'absolute';
+        this.container.style.top = 'calc(20px + env(safe-area-inset-top))';
+        this.container.style.right = 'calc(20px + env(safe-area-inset-right))';
+        this.container.style.color = CONFIG.COLORS.UI_TEXT;
         const baseFontSize = Math.min(28, Math.max(18, window.innerWidth / 30));
-        container.style.fontSize = `${baseFontSize}px`;
-        container.style.fontFamily = 'Arial, sans-serif';
-        container.style.textAlign = 'right';
+        this.container.style.fontSize = `${baseFontSize}px`;
+        this.container.style.fontFamily = 'Arial, sans-serif';
+        this.container.style.textAlign = 'right';
+        this.container.style.display = 'none';
 
         this.levelEl = document.createElement('div');
         this.shotsEl = document.createElement('div');
         this.wallsEl = document.createElement('div');
 
-        container.appendChild(this.levelEl);
-        container.appendChild(this.shotsEl);
-        container.appendChild(this.wallsEl);
-        document.body.appendChild(container);
+        this.container.appendChild(this.levelEl);
+        this.container.appendChild(this.shotsEl);
+        this.container.appendChild(this.wallsEl);
+        document.body.appendChild(this.container);
     }
+
+    show() { this.container.style.display = ''; }
+    hide() { this.container.style.display = 'none'; }
 
     update(level, shotsRemaining, wallCount) {
         this.levelEl.textContent = `Level: ${level}`;

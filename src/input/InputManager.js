@@ -100,6 +100,7 @@ export class InputManager {
             raycaster.ray.intersectPlane(plane, intersection);
             intersection.y = ballPos.y;
 
+            this.aimStart.copy(ballPos);
             this.aimEnd.copy(intersection);
             this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, this.aimEnd]);
         };
@@ -112,7 +113,8 @@ export class InputManager {
                 if (this.activeTouchId !== null && pos.touchId !== this.activeTouchId) return;
             }
 
-            // Calculate impulse
+            // Calculate impulse from current ball position
+            this.aimStart.copy(this.getBallPosition());
             const direction = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd);
             const distance = direction.length();
             const magnitude = Math.min(distance * CONFIG.AIMING.IMPULSE_MULTIPLIER, CONFIG.AIMING.MAX_IMPULSE);

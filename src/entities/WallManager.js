@@ -156,4 +156,13 @@ export class WallManager {
         this.fadingWalls.forEach(wall => this.scene.remove(wall.mesh));
         this.fadingWalls = [];
     }
+
+    /** Clear walls AND contact materials (used when returning to home screen). */
+    clearAll() {
+        this.clear();
+        for (const cm of this.wallContactMaterials) {
+            this.physics.removeContactMaterial(cm);
+        }
+        this.wallContactMaterials = [];
+    }
 }

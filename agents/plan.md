@@ -582,110 +582,179 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 **Priority:** MEDIUM - Enhances player experience
 **Estimated Effort:** 12-16 hours
-**Status:** NOT STARTED
+**Status:** IN PROGRESS (3.1 & 3.2 complete)
 
-### Task 3.1: Local Storage & High Scores
+### Task 3.1: Local Storage & High Scores ✅ COMPLETED
 
-**Files:** New `src/storage/StorageManager.js`, modify `src/core/PoolGame.js`
+**Files:** New `src/storage/StorageManager.js`, modify `src/core/PoolGame.js`, modify `src/ui/GameOverScreen.js`
 
-**Implementation Details:**
+**What was implemented:**
 
-1. **Create StorageManager** — Handles all localStorage operations with graceful fallbacks.
-   - `saveHighScore(level)` — Saves level reached with timestamp, keeps top 10 sorted by level descending
-   - `getHighScore()` — Returns the best entry (highest level)
-   - `getAllHighScores()` — Returns full top-10 list
-   - `saveSettings(settings)` / `getSettings()` — Persists user preferences (sound, orientation)
-   - Try-catch around all localStorage calls (private browsing, quota)
+1. **StorageManager** (`src/storage/StorageManager.js`) — Lightweight localStorage wrapper:
+   - `saveHighScore(level, initials)` — Saves 3-letter initials + level + ISO date, keeps **top 3** sorted by level descending
+   - `getHighScore()` / `getAllHighScores()` — Query best or full list
+   - `saveSettings(settings)` / `getSettings()` — For orientation, sound prefs
+   - All localStorage calls wrapped in try-catch (handles private browsing, quota errors)
 
-2. **Integrate into game flow**
-   - On game over → `storage.saveHighScore(this.level)`
-   - Game over screen shows "New High Score!" if current run beats the record
-   - Settings saved on change, loaded on startup
+2. **GameOverScreen** — Arcade-style 3-initial entry: three single-character `<input>` boxes with auto-advance, backspace navigation, letters only. `show(level, isNewBest, onDone)` calls `onDone(initials)` on OK.
+
+3. **PoolGame integration** — `gameOver()` checks previous best for `isNewBest` flag, then defers save until initials are entered: `onDone(initials) → storage.saveHighScore(level, initials) → returnToHome()`.
 
 ---
 
-### Task 3.2: Home Screen
+### Task 3.2: Home Screen ✅ COMPLETED
 
-**Files:** New `src/ui/HomeScreen.js`, modify `src/core/PoolGame.js`, modify `index.html`
+**Files:** New `src/ui/HomeScreen.js`, modify `src/core/PoolGame.js`, `src/ui/HUD.js`, `src/entities/WallManager.js`, `styles.css`
 
-**Design:** Neon-themed title screen using the game's color palette, displayed before gameplay starts.
+**What was implemented:**
 
-**Implementation Details:**
+1. **HomeScreen component** (`src/ui/HomeScreen.js`) — Full-screen DOM overlay with:
+   - **Neon title** — "POOLANOID" with layered `text-shadow` bloom glow (`#E4FF30` inner, `#008BFF` outer), subtle `neon-pulse` CSS animation
+   - **Top 3 high scores** — Displays initials + level + date, "No scores yet" placeholder
+   - **Orientation selector** — Portrait/Landscape toggle buttons with `▯`/`▭` icons; selection saved to localStorage; on play, attempts `screen.orientation.lock()` (fails silently on unsupported browsers/desktop)
+   - **Play button** — Neon-bordered with glow, 44px min touch target
 
-1. **Neon title** — "POOLANOID" rendered large with CSS text-shadow bloom glow effect
-   - Multiple layered `text-shadow` values using game colors (`#E4FF30`, `#008BFF`, `#FF5FCF`)
-   - Subtle pulsing animation on the glow (CSS `@keyframes`)
-   - Font: bold sans-serif, large `clamp()` sizing
+2. **Game flow refactored** in `PoolGame`:
+   - Constructor sets up renderer, scene, camera, lighting, physics, table, ball — but does NOT create walls or start gameplay
+   - `this.isPlaying` flag gates physics updates in `animate()` — render loop always runs (3D scene visible behind home screen)
+   - `startGame()` — hides home screen, creates walls, shows HUD, enables shooting
+   - `gameOver()` → initials entry → save → `returnToHome()`
+   - `returnToHome()` — clears walls + contact materials, hides HUD, refreshes scores, shows home screen
 
-2. **High scores display** — Shows top scores from StorageManager
-   - Compact list of top 5 (level + date)
-   - Neon-styled rows matching game palette
-   - "No scores yet" placeholder if empty
+3. **HUD** — Added `show()`/`hide()` methods; container starts hidden (`display: none`)
 
-3. **Orientation selector** — Let user choose portrait or landscape before playing
-   - Two toggle buttons/icons showing phone orientation
-   - Selected choice saved to localStorage via StorageManager
-   - On play: if device supports `screen.orientation.lock()`, attempt to lock to chosen orientation; otherwise just proceed (desktop ignores this)
+4. **WallManager** — Added `clearAll()` method (clears walls + removes contact materials)
 
-4. **Play button** — Large, prominent, neon-styled
-   - Glow effect matching title
-   - Minimum 44px touch target
-   - On click: hides home screen, starts game (calls `PoolGame.startGame()`)
+5. **CSS** (`styles.css`) — Neon styles: `.home-screen`, `.neon-title`, `@keyframes neon-pulse`, `.home-scores-*`, `.score-initials`, `.home-orient-*`, `.neon-play-btn`
 
-5. **Game flow change** — Constructor sets up renderer/scene but does NOT start the game loop immediately
-   - Home screen shown first
-   - `startGame()` method creates entities, starts `animate()`, shows HUD
-   - On game over → restart returns to home screen (not directly into a new game)
+6. **Tutorial animation** — Pure CSS keyframe animation on the home screen showing drag-to-aim mechanic:
+   - 4 animated elements: ball, aim line, finger indicator, ghost ball (3.5s loop)
+   - Label: "DRAG TO AIM, RELEASE TO SHOOT — DESTROY ALL WALLS"
+   - `@keyframes tut-finger`, `tut-aim`, `tut-ball`, `tut-ghost`
 
-**Visual style reference (CSS glow):**
-```css
-.neon-title {
-    color: #E4FF30;
-    text-shadow:
-        0 0 7px #E4FF30,
-        0 0 10px #E4FF30,
-        0 0 21px #E4FF30,
-        0 0 42px #008BFF,
-        0 0 82px #008BFF,
-        0 0 92px #008BFF;
-}
+7. **Landscape-responsive layout** — `@media (orientation: landscape) and (max-height: 600px)` switches from flex column to 2-column CSS grid: title and play button span full width, scores and orientation selector sit side by side in the middle row, tutorial spans both columns with reduced height
+
+8. **Aim line tracks moving ball** (`src/input/InputManager.js`) — `aimStart` is now updated to the ball's current position on every `onInputMove` and `onInputEnd`, so the aim line origin follows the ball even while it's still rolling
+
+---
+
+### Task 3.3: Special Walls & Power-ups
+
+**Files:** `src/entities/WallManager.js`, `src/config.js`, `src/core/PoolGame.js`, `src/entities/Ball.js`
+
+#### Wall Behavior Types (affect ball physics)
+
+These exist alongside the current `normal` wall. They are visually distinct (color) and change how the ball reacts on impact.
+
+| Type | Color | Restitution | Friction | Behavior |
+|------|-------|-------------|----------|----------|
+| **Normal** | `0x00FF9C` mint | 0.82 | 0.02 | Standard bounce (current) |
+| **Extra-bounce** | `0xFF5FCF` magenta | 0.98 | 0.01 | Ball ricochets aggressively, barely loses energy. Dangerous in tight spaces, useful for chain reactions. (replaces current `red` type) |
+| **Sticky** | `0xFFAA00` amber | 0.10 | 0.80 | Ball nearly stops on contact — absorbs almost all kinetic energy. Forces careful aim. |
+| **Low-bounce** | `0xE4FF30` lime | 0.42 | 0.02 | Ball loses significant energy. (current `blue` type, renamed for clarity) |
+
+#### Power-up Walls (special effect on break)
+
+These are rarer walls that trigger a one-time effect when destroyed. They get a subtle **pulsating emissive glow** (animate `emissiveIntensity` between 0.1 and 0.5 in the game loop) to distinguish them from behavior walls.
+
+| Type | Color | Effect |
+|------|-------|--------|
+| **Extra Shot** | `0x00FFFF` cyan | Awards **+3 shots** immediately. HUD flashes briefly. |
+| **Bomb** | `0xFF0000` red | Destroys all walls within **1.5 world-unit radius** of impact. Chain-reacts with other bomb walls. |
+| **Multi-Ball** | `0x00BFFF` sky blue | Spawns **2 temporary extra balls** at impact position. |
+
+#### Level-scaled spawn rates
+
+Special wall probability increases with level. `CONFIG.WALL_TYPES` becomes a function or is computed per level:
+
+```
+Level 1–2:   Normal 80%, Extra-bounce 10%, Low-bounce 10%
+             (no power-ups yet — learn the basics)
+
+Level 3–5:   Normal 70%, Extra-bounce 10%, Low-bounce 8%, Sticky 5%,
+             Extra Shot 3%, Bomb 2%, Multi-Ball 2%
+
+Level 6+:    Normal 55%, Extra-bounce 12%, Low-bounce 8%, Sticky 8%,
+             Extra Shot 6%, Bomb 5%, Multi-Ball 6%
 ```
 
----
+Implementation: `WallManager.createWalls(level, ballMaterial)` computes `CONFIG.getWallTypes(level)` which returns the cumulative-threshold array for that level. The existing `roll < threshold` logic works unchanged.
 
-### Task 3.3: Power-up & Special Walls
+#### Multi-Ball detailed design
 
-**Files:** `src/entities/WallManager.js`, `src/config.js`, `src/core/PoolGame.js`
+This is the most complex power-up. Key decisions:
 
-**Implementation Details:**
+1. **Spawning** — 2 extra balls appear at the impact position with random outward impulses (spread ~120° apart, magnitude ~60% of the main ball's current velocity). Slight Y offset to avoid clipping into the table.
 
-1. **New power-up wall types** in `CONFIG.WALL_TYPES` (reduce normal wall probability to accommodate):
-   - **Extra Shot** (`0x00FFFF` cyan, ~4%) — Awards +3 shots on break
-   - **Bomb** (`0xFF0000` red, ~3%) — Destroys all walls within 1.5 unit radius
-   - **Multi-Ball** (`0xFFAA00` orange, ~3%) — Spawns 2 temporary extra balls
+2. **Shared physics material** — Extra balls must reuse the main ball's `CANNON.Material` instance so all existing contact materials (ball-table, ball-cushion, ball-wall) apply automatically. `Ball` class constructor should accept an optional material parameter: `new Ball(scene, physics, existingMaterial)`.
 
-2. **Power-up activation** — `WallManager` emits a new `onPowerup(type, position)` callback; `PoolGame` handles the effect logic (modifying shots, spawning balls, area destruction)
+3. **Collision handling** — Each extra ball gets the same `collide` listener as the main ball → `wallManager.queueRemoval(event.body, ...)`. Walls don't care which ball hit them.
 
-3. **Visual indicators** — Power-up walls get a subtle pulsating emissive glow to distinguish them from regular walls
+4. **Lifecycle** — Extra balls are temporary. They are removed when:
+   - They come to rest (velocity < `BALL_SLEEP_SPEED_LIMIT` for `BALL_SLEEP_TIME_LIMIT` seconds — same thresholds as the main ball), OR
+   - A hard timeout of 8 seconds elapses (safety net)
 
-4. **Floating text** — On power-up activation, a text sprite floats upward and fades ("BOOM!", "+3 Shots!", "Multi-Ball!")
+5. **Cleanup** — `PoolGame` tracks `this.extraBalls = []`. On each `animate()` frame, check each extra ball: if sleeping or expired, remove its body from physics, remove its mesh from scene, splice from array. On `returnToHome()` / `startGame()`, clear all extra balls.
+
+6. **No extra shots consumed** — Extra balls are free bonus destruction. The player's shot count is unaffected.
+
+#### Visual indicators
+
+- **Behavior walls**: distinguished by color only (no glow). Colors are distinct enough to learn quickly.
+- **Power-up walls**: subtle animated emissive glow. `WallManager` stores a `powerupWalls` sub-array; `PoolGame.animate()` calls `wallManager.updatePowerupGlow(time)` to pulse `emissiveIntensity`.
+
+#### Floating text
+
+On power-up activation, a canvas-based `TextSprite` floats upward from the impact point and fades over ~1.5s. Text examples: "+3 Shots!", "BOOM!", "Multi-Ball!". Uses `CanvasTexture` → `SpriteMaterial` for crisp rendering at any camera angle.
 
 ---
 
 ### Task 3.4: Combo System & Feedback
 
-**Files:** `src/core/PoolGame.js`, `src/config.js`
+**Files:** `src/core/PoolGame.js`, `src/config.js`, `src/ui/HUD.js`
 
-**Implementation Details:**
+#### Combo tracking
 
-1. **Combo tracking** — Count consecutive wall breaks within a time window (2s timeout resets combo)
-   - Combo counter displayed on screen when ≥ 2x
-   - Combo rewards: +1 shot at 5x, +2 shots at 10x
+Count walls broken within a rolling time window. A single shot that destroys multiple walls (via ricochet or bomb chain-reaction) builds a combo.
 
-2. **Visual feedback**
-   - Screen shake on wall break (subtle camera offset, decays over ~80ms)
-   - Slow-mo effect on high combo (temporarily reduce physics timestep)
-   - Camera zoom on level complete
+- `this.combo = 0` — reset at start of each shot (in `onShoot()`)
+- Each `wallManager.onWallRemoved` increments `this.combo`
+- Combo count is evaluated after a brief settle delay: `this.comboTimer` starts/restarts a 500ms timeout on each wall removal. When it fires (no more walls removed for 500ms), the combo is finalized and rewards are given.
+
+#### Combo rewards
+
+| Combo | Reward |
+|-------|--------|
+| 2x | No reward, but counter shown |
+| 3x | +1 shot |
+| 5x | +2 shots |
+| 8x+ | +3 shots |
+
+Config values in `CONFIG.COMBO`:
+```javascript
+COMBO: {
+    SETTLE_DELAY: 500,          // ms — wait for more breaks before finalizing
+    THRESHOLDS: [               // { min, shots }
+        { min: 3, shots: 1 },
+        { min: 5, shots: 2 },
+        { min: 8, shots: 3 }
+    ]
+}
+```
+
+#### Combo HUD element
+
+- A centered DOM element (managed by HUD) that shows "2x COMBO!", "5x COMBO!" etc.
+- Appears on combo ≥ 2, scales up with a CSS `transform: scale()` pop animation, fades out after the combo settles
+- Color escalates: 2x = `#E4FF30`, 5x = `#008BFF`, 8x+ = `#FF5FCF`
+
+#### Visual feedback
+
+1. **Screen shake** — On every wall break, briefly offset `camera.position` by a small random XZ amount (±0.03 units), decaying exponentially over ~80ms. Intensity scales with combo count (1x = 0.02, 5x = 0.05, 8x+ = 0.08). Implemented as a shake accumulator in `animate()` — NOT in a separate `requestAnimationFrame` loop.
+
+2. **Slow-mo on high combo** — When combo ≥ 5, temporarily scale `CONFIG.PHYSICS.DT` to 50% for ~0.5s, then ease back to normal. Makes multi-hit ricochets feel cinematic. Store `this.slowMoUntil = Date.now() + 500` and check in `animate()`.
+
+3. **Level complete zoom** — On `nextLevel()`, briefly tween camera Y position down by 1 unit over ~0.3s (zoom in), hold for 0.2s, then ease back. Use the same accumulator pattern as screen shake.
 
 ---
 
@@ -1459,6 +1528,6 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 ---
 
 **Document Version:** 1.0
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-15
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

@@ -10,6 +10,8 @@ import { InputManager } from '../input/InputManager.js';
 import { ImpactEffects } from '../effects/ImpactEffects.js';
 import { HUD } from '../ui/HUD.js';
 import { GameOverScreen } from '../ui/GameOverScreen.js';
+import { HomeScreen } from '../ui/HomeScreen.js';
+import { StorageManager } from '../storage/StorageManager.js';
 
 /**
  * Main game controller — orchestrates physics, rendering, input, and game state.
@@ -21,6 +23,7 @@ export class PoolGame {
         this.level = 1;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
         this.isGameOver = false;
+        this.isPlaying = false;
         this.isContextLost = false;
 
         // Renderer
@@ -57,7 +60,7 @@ export class PoolGame {
         // Physics
         this.physics = new PhysicsWorld();
 
-        // Entities
+        // Entities (always present — table and ball visible behind home screen)
         this.table = new Table(this.scene, this.physics);
         this.ball = new Ball(this.scene, this.physics);
 
@@ -83,20 +86,22 @@ export class PoolGame {
             this.wallManager.queueRemoval(event.body, this.ball.body.position.clone());
         });
 
-        this.wallManager.createWalls(this.level, this.ball.body.material);
+        // Input
+        this.input = new InputManager(this.camera, this.renderer, this.controls, this.scene);
+        this.input.canShoot = () => this.isPlaying && !this.isGameOver && this.shotsRemaining > 0;
+        this.input.getBallPosition = () => this.ball.mesh.position;
+        this.input.onShoot = (direction, magnitude) => this.onShoot(direction, magnitude);
+
+        // Storage
+        this.storage = new StorageManager();
 
         // UI
         this.hud = new HUD();
         this.gameOverScreen = new GameOverScreen();
-        this.updateHUD();
+        this.homeScreen = new HomeScreen(this.storage);
+        this.homeScreen.onPlay = () => this.startGame();
 
-        // Input
-        this.input = new InputManager(this.camera, this.renderer, this.controls, this.scene);
-        this.input.canShoot = () => !this.isGameOver && this.shotsRemaining > 0;
-        this.input.getBallPosition = () => this.ball.mesh.position;
-        this.input.onShoot = (direction, magnitude) => this.onShoot(direction, magnitude);
-
-        // Start animation loop
+        // Start render loop (background scene visible behind home screen)
         this.animate();
 
         // Resize
@@ -111,9 +116,36 @@ export class PoolGame {
         // Cleanup
         window.addEventListener('beforeunload', () => this.dispose());
 
-        // Done loading
+        // Done loading — hide loader, home screen is already visible
         this.hideLoadingScreen();
     }
+
+    /* ── Game Flow ── */
+
+    startGame() {
+        this.homeScreen.hide();
+        this.level = 1;
+        this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
+        this.isGameOver = false;
+        this.isPlaying = true;
+        this.ball.reset();
+        this.effects.clear();
+        this.wallManager.createWalls(this.level, this.ball.body.material);
+        this.hud.show();
+        this.updateHUD();
+    }
+
+    returnToHome() {
+        this.isPlaying = false;
+        this.wallManager.clearAll();
+        this.effects.clear();
+        this.ball.reset();
+        this.hud.hide();
+        this.homeScreen.refresh();
+        this.homeScreen.show();
+    }
+
+    /* ── Lighting ── */
 
     setupLighting() {
         const L = CONFIG.LIGHTING;
@@ -150,6 +182,8 @@ export class PoolGame {
         this.scene.add(rimLight);
     }
 
+    /* ── Gameplay ── */
+
     updateHUD() {
         this.hud.update(this.level, this.shotsRemaining, this.wallManager.count);
     }
@@ -169,10 +203,12 @@ export class PoolGame {
         requestAnimationFrame((t) => this.animate(t));
 
         try {
-            this.physics.update(time, this.ball.body.velocity, () => this.wallManager.processRemovals());
-            this.ball.clampToTable();
-            this.ball.syncMeshToBody();
-            this.effects.update();
+            if (this.isPlaying) {
+                this.physics.update(time, this.ball.body.velocity, () => this.wallManager.processRemovals());
+                this.ball.clampToTable();
+                this.ball.syncMeshToBody();
+                this.effects.update();
+            }
             this.controls.update();
             this.renderer.render(this.scene, this.camera);
             this.hud.updateFPS();
@@ -197,18 +233,17 @@ export class PoolGame {
     gameOver() {
         this.isGameOver = true;
         this.ball.stop();
-        this.gameOverScreen.show(this.level, () => this.restart());
+
+        const previousBest = this.storage.getHighScore();
+        const isNewBest = !previousBest || this.level > previousBest.level;
+
+        this.gameOverScreen.show(this.level, isNewBest, (initials) => {
+            this.storage.saveHighScore(this.level, initials);
+            this.returnToHome();
+        });
     }
 
-    restart() {
-        this.level = 1;
-        this.shotsRemaining = CONFIG.GAME.BASE_SHOTS;
-        this.isGameOver = false;
-        this.ball.reset();
-        this.effects.clear();
-        this.wallManager.createWalls(this.level, this.ball.body.material);
-        this.updateHUD();
-    }
+    /* ── Infrastructure ── */
 
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
