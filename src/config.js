@@ -276,6 +276,25 @@ export const CONFIG = {
         WALL_SHININESS: 100
     },
 
+    // Audio (Web Audio synthesis parameters)
+    AUDIO: {
+        WALL_BREAK_DURATION: 0.15,
+        WALL_BREAK_GAIN: 1.0,
+        COMBO_HIT_GAIN: 1.2,
+        SHOOT_DURATION: 0.05,
+        SHOOT_GAIN: 0.8,
+        SHOOT_FILTER_FREQ: 300,
+        CUSHION_FREQ: 1200,
+        CUSHION_DURATION: 0.04,
+        CUSHION_GAIN: 0.4,
+        ARPEGGIO_STAGGER: 0.08,
+        ARPEGGIO_NOTE_DURATION: 0.25,
+        ARPEGGIO_GAIN: 0.8,
+        GAME_OVER_STAGGER: 0.2,
+        GAME_OVER_NOTE_DURATION: 0.4,
+        GAME_OVER_GAIN: 0.7,
+    },
+
     // Quality / Device Detection
     QUALITY: {
         MOBILE_MAX_PIXEL_RATIO: 1.5,

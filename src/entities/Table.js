@@ -59,6 +59,7 @@ export class Table {
                 position: pos,
                 material: wallMaterial
             });
+            body.isCushion = true;
             physics.addBody(body);
         }
     }

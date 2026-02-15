@@ -582,7 +582,7 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
 
 **Priority:** MEDIUM - Enhances player experience
 **Estimated Effort:** 12-16 hours
-**Status:** IN PROGRESS (3.1 & 3.2 complete)
+**Status:** COMPLETED ✅
 
 ### Task 3.1: Local Storage & High Scores ✅ COMPLETED
 
@@ -771,7 +771,7 @@ The aim line currently extends from the ball toward the drag point. It should be
 
 ---
 
-### Task 3.4: Combo System & Feedback
+### Task 3.4: Combo System & Feedback ✅
 
 **Files:** `src/core/PoolGame.js`, `src/config.js`, `src/ui/HUD.js`
 
@@ -823,36 +823,38 @@ COMBO: {
 
 ---
 
-### Task 3.5: Sound Effects (Web Audio Synthesis)
+### Task 3.5: Sound Effects (Web Audio Synthesis) ✅ COMPLETED
 
-**Files:** New `src/audio/AudioManager.js`, modify `src/core/PoolGame.js`
+**Files:** New `src/audio/AudioManager.js`, modify `src/core/PoolGame.js`, `src/config.js`, `src/entities/Table.js`, `src/ui/HomeScreen.js`
 
-**Approach:** Pure Web Audio API synthesis — no external libraries, no audio files. Subtle, musical sound design.
+**What was implemented:**
 
-**Implementation Details:**
+1. **AudioManager class** (`src/audio/AudioManager.js`) — Pure Web Audio API synthesizer, no external files or libraries:
+   - Lazily creates `AudioContext` on first user gesture (mobile autoplay compliance)
+   - `enabled` toggle + `volume` control (master gain 0.15)
+   - E major scale frequencies (E3→E6, 22 notes) used for musical wall-break sounds
 
-1. **AudioManager class** — Creates and reuses a single `AudioContext`
-   - Initialized on first user interaction (tap/click) to comply with mobile autoplay policies
-   - `enabled` toggle, volume control
+2. **Sound events:**
+   - **Wall break** — Random E-major note, sine oscillator, 150ms decay
+   - **Combo hit** — Same as wall break but picks from upper scale range as combo rises (pitch escalation)
+   - **Shoot** — Filtered white noise burst (low-pass 300Hz→60Hz, 50ms) for percussive thud
+   - **Cushion bounce** — Short 1200Hz sine ping, 40ms, low gain (soft click)
+   - **Level complete** — 4-note ascending arpeggio (triangle wave, 80ms stagger)
+   - **Game over** — 3-note descending minor phrase (E4→C4→A3, 200ms stagger)
 
-2. **Sound design — Major scale notes E3 to E6**
-   - Define E major scale frequencies: E, F#, G#, A, B, C#, D# across octaves 3–6
-   - Each wall break plays a random note from the scale
-   - Oscillator type: sine or triangle (soft, clean tone)
-   - Short envelope: quick attack (~5ms), short sustain, exponential decay (~150ms)
-   - Subtle volume (0.1–0.2 gain) — sounds should enhance, not dominate
+3. **Integration in `PoolGame`:**
+   - `audio.init()` called in `startGame()` (first user gesture)
+   - `wallBreak`/`comboHit` on wall destruction (via `scoreWall`)
+   - `wallBreak` on power-up wall destruction (via `handlePowerUp`)
+   - `shoot` on ball impulse (via `onShoot`)
+   - `cushionBounce` on boundary wall collision (detected via `body.isCushion` tag)
+   - `levelComplete` on level clear, `gameOver` on game end
 
-3. **Sound events:**
-   - **Wall break** — Random major scale note, sine oscillator, fast decay
-   - **Shoot** — Low percussive thud (filtered noise burst, ~50ms)
-   - **Cushion bounce** — Soft click (very short sine ping, muted)
-   - **Level complete** — Quick ascending arpeggio (3-4 notes up the scale, staggered ~80ms apart)
-   - **Game over** — Descending minor phrase (3 notes, slower decay)
-   - **Combo hit** — Same as wall break but pitch rises with combo count
+4. **Cushion detection** — Boundary wall bodies tagged with `body.isCushion = true` in `Table.js`
 
-4. **Integration** — `PoolGame` calls `audio.play('wallBreak')`, `audio.play('shoot')`, etc. at appropriate moments. AudioManager handles all synthesis internally.
+5. **Sound toggle** — ON/OFF button on HomeScreen, persisted to localStorage via StorageManager, synced to `audio.enabled`
 
-5. **No external dependencies** — Everything generated via `OscillatorNode`, `GainNode`, `BiquadFilterNode`
+6. **Config** — All synthesis parameters (durations, gains, frequencies) in `CONFIG.AUDIO` for easy tuning
 
 ---
 
@@ -989,66 +991,6 @@ COMBO: {
 - ✅ Particles emit on wall break
 - ✅ Smooth animation
 - ✅ No performance impact on mobile
-
----
-
-### Task 4.2: Ball Trail Effect
-
-**Implementation Details:**
-
-1. **Create trail renderer**
-   ```javascript
-   createBallTrail() {
-       const trailLength = 20;
-       const positions = new Float32Array(trailLength * 3);
-
-       const geometry = new THREE.BufferGeometry();
-       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-       const material = new THREE.LineBasicMaterial({
-           color: 0xFFD700,
-           transparent: true,
-           opacity: 0.6,
-           linewidth: 2
-       });
-
-       this.ballTrail = new THREE.Line(geometry, material);
-       this.scene.add(this.ballTrail);
-
-       this.trailPositions = [];
-   }
-
-   updateBallTrail() {
-       const speed = this.ballBody.velocity.length();
-
-       // Only show trail when moving fast
-       if (speed > 1) {
-           this.ballTrail.visible = true;
-
-           this.trailPositions.unshift(this.ballMesh.position.clone());
-           if (this.trailPositions.length > 20) {
-               this.trailPositions.pop();
-           }
-
-           const positions = this.ballTrail.geometry.attributes.position.array;
-           for (let i = 0; i < this.trailPositions.length; i++) {
-               positions[i * 3] = this.trailPositions[i].x;
-               positions[i * 3 + 1] = this.trailPositions[i].y;
-               positions[i * 3 + 2] = this.trailPositions[i].z;
-           }
-
-           this.ballTrail.geometry.attributes.position.needsUpdate = true;
-           this.ballTrail.material.opacity = Math.min(speed / 10, 0.8);
-       } else {
-           this.ballTrail.visible = false;
-       }
-   }
-   ```
-
-**Success Criteria:**
-- ✅ Trail visible when ball moving fast
-- ✅ Smooth trail rendering
-- ✅ Trail fades appropriately
 
 ---
 

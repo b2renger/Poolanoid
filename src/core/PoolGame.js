@@ -13,6 +13,7 @@ import { HUD } from '../ui/HUD.js';
 import { GameOverScreen } from '../ui/GameOverScreen.js';
 import { HomeScreen } from '../ui/HomeScreen.js';
 import { StorageManager } from '../storage/StorageManager.js';
+import { AudioManager } from '../audio/AudioManager.js';
 
 /**
  * Main game controller — orchestrates physics, rendering, input, and game state.
@@ -99,10 +100,11 @@ export class PoolGame {
         this.wallManager.onCountChanged = () => this.updateHUD();
         this.wallManager.onPowerUp = (type, pos) => this.handlePowerUp(type, pos);
 
-        // Ball collision → wall removal queue + velocity effects
+        // Ball collision → wall removal queue + velocity effects + sound
         this.ball.body.addEventListener('collide', (event) => {
             this.wallManager.queueRemoval(event.body, this.ball.body.position.clone());
             if (event.body.wallType) this.applyWallEffect(event.body.wallType, this.ball.body);
+            if (event.body.isCushion) this.audio.play('cushionBounce');
         });
 
         // Input
@@ -114,11 +116,16 @@ export class PoolGame {
         // Storage
         this.storage = new StorageManager();
 
+        // Audio (initialized lazily on first user gesture)
+        this.audio = new AudioManager();
+
         // UI
         this.hud = new HUD();
         this.gameOverScreen = new GameOverScreen();
         this.homeScreen = new HomeScreen(this.storage);
         this.homeScreen.onPlay = () => this.startGame();
+        this.homeScreen.onSoundToggle = (enabled) => { this.audio.enabled = enabled; };
+        this.audio.enabled = this.homeScreen.soundEnabled;
 
         // Start render loop (background scene visible behind home screen)
         this.animate();
@@ -142,6 +149,7 @@ export class PoolGame {
     /* ── Game Flow ── */
 
     startGame() {
+        this.audio.init(); // first user gesture → create AudioContext
         this.homeScreen.hide();
         this.level = 1;
         this.score = 0;
@@ -235,6 +243,7 @@ export class PoolGame {
         clearTimeout(this.comboTimer);
         this.comboTimer = null;
         this.ball.applyImpulse(direction, magnitude);
+        this.audio.play('shoot');
         this.updateHUD();
         // Game-over check is deferred to animate() so the last shot plays out
         // and power-ups (extra shots) can still save the player.
@@ -322,6 +331,7 @@ export class PoolGame {
         this.ball.stop();
         this.clearExtraBalls();
         this.levelZoomStart = Date.now();
+        this.audio.play('levelComplete');
 
         setTimeout(() => {
             this.effects.clear();
@@ -338,6 +348,7 @@ export class PoolGame {
         this.clearExtraBalls();
         clearTimeout(this.comboTimer);
         this.physics.timeScale = 1;
+        this.audio.play('gameOver');
 
         const previousBest = this.storage.getHighScore();
         const isNewBest = !previousBest || this.score > previousBest.score;
@@ -354,6 +365,7 @@ export class PoolGame {
         const def = CONFIG.POWERUPS[type];
         const colorHex = '#' + def.color.toString(16).padStart(6, '0');
         this.floatingText.spawn(def.label, position, colorHex);
+        this.audio.play('wallBreak');
 
         switch (type) {
             case 'extraShot':
@@ -394,6 +406,13 @@ export class PoolGame {
         this.score += points;
         this.combo++;
         this.updateHUD();
+
+        // Sound — pitch escalates with combo
+        if (this.combo > 1) {
+            this.audio.play('comboHit', { combo: this.combo });
+        } else {
+            this.audio.play('wallBreak');
+        }
 
         // Color-coded floating text
         const behavior = CONFIG.WALL_BEHAVIORS[type];

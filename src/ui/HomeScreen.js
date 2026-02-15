@@ -6,7 +6,10 @@ export class HomeScreen {
         this.storage = storage;
         /** @type {Function|null} Called when the user taps Play. */
         this.onPlay = null;
+        /** @type {Function|null} Called when the user toggles sound. */
+        this.onSoundToggle = null;
         this.selectedOrientation = storage.getSettings().orientation || 'landscape';
+        this.soundEnabled = storage.getSettings().sound !== false; // default on
         this.element = null;
         this.scoresContainer = null;
         this._create();
@@ -54,6 +57,27 @@ export class HomeScreen {
         orientSection.appendChild(orientLabel);
         orientSection.appendChild(orientBtns);
 
+        // ── Sound Toggle ──
+        const soundSection = document.createElement('div');
+        soundSection.className = 'home-sound';
+
+        const soundLabel = document.createElement('div');
+        soundLabel.className = 'home-orient-label';
+        soundLabel.textContent = 'SOUND';
+
+        this.soundBtn = document.createElement('button');
+        this.soundBtn.className = 'home-orient-option active';
+        this._updateSoundBtn();
+        this.soundBtn.addEventListener('click', () => {
+            this.soundEnabled = !this.soundEnabled;
+            this.storage.saveSettings({ sound: this.soundEnabled });
+            this._updateSoundBtn();
+            if (this.onSoundToggle) this.onSoundToggle(this.soundEnabled);
+        });
+
+        soundSection.appendChild(soundLabel);
+        soundSection.appendChild(this.soundBtn);
+
         // ── How to Play ──
         const tutorial = document.createElement('div');
         tutorial.className = 'home-tutorial';
@@ -95,6 +119,7 @@ export class HomeScreen {
         el.appendChild(title);
         el.appendChild(scoresSection);
         el.appendChild(orientSection);
+        el.appendChild(soundSection);
         el.appendChild(tutorial);
         el.appendChild(playBtn);
         document.body.appendChild(el);
@@ -128,6 +153,11 @@ export class HomeScreen {
     _updateOrientBtns() {
         this.portraitBtn.classList.toggle('active', this.selectedOrientation === 'portrait');
         this.landscapeBtn.classList.toggle('active', this.selectedOrientation === 'landscape');
+    }
+
+    _updateSoundBtn() {
+        this.soundBtn.textContent = this.soundEnabled ? '🔊 ON' : '🔇 OFF';
+        this.soundBtn.classList.toggle('active', this.soundEnabled);
     }
 
     _renderScores() {
