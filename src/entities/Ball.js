@@ -30,28 +30,24 @@ export class Ball {
             position: new CANNON.Vec3(0, radius, 0),
             material: existingMaterial || new CANNON.Material(),
             linearDamping: CONFIG.PHYSICS.BALL_LINEAR_DAMPING,
-            angularDamping: CONFIG.PHYSICS.BALL_ANGULAR_DAMPING,
+            fixedRotation: true,
             sleepSpeedLimit: CONFIG.PHYSICS.BALL_SLEEP_SPEED_LIMIT,
             sleepTimeLimit: CONFIG.PHYSICS.BALL_SLEEP_TIME_LIMIT
         });
         physics.addBody(this.body);
     }
 
-    /** Sync Three.js mesh to Cannon body position/rotation. */
+    /** Sync Three.js mesh to Cannon body position. */
     syncMeshToBody() {
         this.mesh.position.copy(this.body.position);
-        this.mesh.quaternion.copy(this.body.quaternion);
     }
 
-    /** Prevent ball from sinking below the table surface. */
+    /** Lock ball to the table plane (Y fixed, no vertical velocity). */
     clampToTable() {
         const radius = this.body.shapes[0].radius;
         const tableY = CONFIG.DIMENSIONS.TABLE_HEIGHT / 2;
-        const minY = tableY + radius;
-        if (this.body.position.y < minY) {
-            this.body.position.y = minY;
-            this.body.velocity.y = Math.max(0, this.body.velocity.y);
-        }
+        this.body.position.y = tableY + radius;
+        this.body.velocity.y = 0;
     }
 
     applyImpulse(direction, magnitude) {

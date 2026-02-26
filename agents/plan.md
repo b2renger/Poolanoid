@@ -1395,7 +1395,79 @@ COMBO: {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-02-15
+---
+
+## Refinements (Post-Phase 4) 🔧
+
+**Status:** IN PROGRESS
+**Date:** 2026-02-27
+
+Hands-on tuning pass focused on physics robustness, gameplay feel, and quality-of-life improvements. These changes came from playtesting and iterating on the live build.
+
+### Physics overhaul — Arcade-style 2D motion
+
+Replaced the simulation-grade physics with a clean arcade model. The ball now moves purely in the XZ plane with no vertical forces or spin artifacts.
+
+| Change | File | Detail |
+|--------|------|--------|
+| **Gravity → 0** | `config.js` | Removed downward force entirely. Ball stays on the table plane without needing to press against it. |
+| **Fixed rotation** | `Ball.js` | `fixedRotation: true` on CANNON body. No angular velocity, no spin from collisions or friction. |
+| **Y axis locked** | `Ball.js` | `clampToTable()` now unconditionally pins `position.y` and zeros `velocity.y` every frame (was conditional). |
+| **Removed quaternion sync** | `Ball.js` | `syncMeshToBody()` only copies position, no longer copies rotation. |
+| **Removed `BALL_ANGULAR_DAMPING`** | `config.js` | Dead config — no longer referenced after `fixedRotation`. |
+
+**Result:** Trajectories are fully predictable — velocity + linear damping + collisions only. No weird physics from spin, gravity bounce, or table friction torque.
+
+### Bouncier world boundaries
+
+Increased `BALL_CUSHION_RESTITUTION` from **0.80 → 0.92** (user-tuned). The ball retains more energy on boundary wall bounces, making ricochets more dynamic.
+
+### Aim line minimum length
+
+Added a **10-pixel screen-space minimum** for the aim line (`InputManager.js`). The line endpoints are projected to NDC → pixel coordinates; if the pixel distance is < 10, the line geometry is not updated. Prevents tiny/invisible lines on micro-drags.
+
+### Slow-motion disabled
+
+Commented out all slow-mo code (kept in source for potential re-enable):
+- `animate()` loop: time scale override block
+- `scoreWall()`: combo-triggered `slowMoUntil` assignment
+
+### All bonus walls glow
+
+Extended the pulsating emissive glow (previously powerup-only) to **all non-normal behavior walls** (extraBounce, lowBounce, sticky). They now share the same `updatePowerupGlow()` animation as powerup walls. Changes in `WallManager.js`:
+- `isSpecial = isPowerUp || type !== 'normal'` gates emissive material + glow tracking
+- Removal cleanup updated to match
+
+### Play field resized to 9×6
+
+| Dimension | Before | After |
+|-----------|--------|-------|
+| `TABLE_WIDTH` | 10 | 9 |
+| `TABLE_DEPTH` | 5 | 6 |
+| `WALL_SPAWN_WIDTH` | 8 | 7 |
+| `WALL_SPAWN_DEPTH` | 3 | 4 |
+
+Both the Three.js mesh and CANNON body read from config, so the change propagates to visuals and physics automatically.
+
+### Bomb uses AABB intersection
+
+Replaced the radius-based bomb blast with **AABB overlap detection** (`WallManager._triggerBomb`). The bomb wall's bounding box is computed via `body.computeAABB()`, and every remaining wall's AABB is tested for overlap. This means the bomb destroys walls it's physically touching/overlapping, not walls within an arbitrary radius.
+
+### Variable wall lengths
+
+Replaced fixed `WALL_WIDTH: 3` with configurable range:
+- `WALL_MIN_LENGTH: 2` (user-tuned from initial 1.5)
+- `WALL_MAX_LENGTH: 5` (user-tuned from initial 3)
+
+Each wall gets a random length at spawn, applied to both the visual `BoxGeometry` and the CANNON `Box` shape.
+
+### Sticky wall reliably stops the ball
+
+The `collide` event fires mid-solver, so setting velocity to 0 inside the event could be overridden by Cannon's collision response. Fix: the event now sets a `pendingStickyStop` flag, and the ball is stopped **after** `physics.update()` completes in the game loop. Guarantees the velocity stays at zero.
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2026-02-27
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

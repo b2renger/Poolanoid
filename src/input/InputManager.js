@@ -114,7 +114,17 @@ export class InputManager {
                     const maxLen = CONFIG.AIMING.AIM_LINE_MAX_LENGTH;
                     const len = Math.min(dragDist, maxLen) * this.aimLineScale;
                     const lineEnd = new THREE.Vector3().copy(this.aimStart).addScaledVector(dir, len);
-                    this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, lineEnd]);
+
+                    // Only draw if the line is at least 10 pixels long on screen
+                    const startNDC = this.aimStart.clone().project(this.camera);
+                    const endNDC = lineEnd.clone().project(this.camera);
+                    const dx = (endNDC.x - startNDC.x) * window.innerWidth * 0.5;
+                    const dy = (endNDC.y - startNDC.y) * window.innerHeight * 0.5;
+                    const pixelLen = Math.sqrt(dx * dx + dy * dy);
+
+                    if (pixelLen >= 10) {
+                        this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, lineEnd]);
+                    }
                 }
             }
         };

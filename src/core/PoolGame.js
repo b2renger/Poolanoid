@@ -40,6 +40,7 @@ export class PoolGame {
         this.shakeIntensity = 0;
         this.slowMoUntil = 0;
         this.levelZoomStart = 0;
+        this.pendingStickyStop = false;
 
         // Renderer
         this.scene = new THREE.Scene();
@@ -278,15 +279,19 @@ export class PoolGame {
 
         try {
             if (this.isPlaying) {
-                // Slow-mo
-                const now = Date.now();
-                if (this.slowMoUntil && now < this.slowMoUntil) {
-                    this.physics.timeScale = CONFIG.SLOW_MO.TIME_SCALE;
-                } else if (this.physics.timeScale !== 1) {
-                    this.physics.timeScale = 1;
-                }
+                // Slow-mo (disabled)
+                // const now = Date.now();
+                // if (this.slowMoUntil && now < this.slowMoUntil) {
+                //     this.physics.timeScale = CONFIG.SLOW_MO.TIME_SCALE;
+                // } else if (this.physics.timeScale !== 1) {
+                //     this.physics.timeScale = 1;
+                // }
 
                 this.physics.update(time, this.ball.body.velocity, () => this.wallManager.processRemovals());
+                if (this.pendingStickyStop) {
+                    this.ball.stop();
+                    this.pendingStickyStop = false;
+                }
                 this.ball.clampToTable();
                 this.ball.syncMeshToBody();
                 this.updateExtraBalls();
@@ -411,8 +416,7 @@ export class PoolGame {
     applyWallEffect(wallType, ballBody) {
         switch (wallType) {
             case 'sticky':
-                ballBody.velocity.set(0, 0, 0);
-                ballBody.angularVelocity.set(0, 0, 0);
+                this.pendingStickyStop = true;
                 break;
             case 'lowBounce':
                 ballBody.velocity.x *= 0.25;
@@ -455,10 +459,10 @@ export class PoolGame {
             S.MAX_INTENSITY
         );
 
-        // Slow-mo on high combos
-        if (this.combo >= CONFIG.SLOW_MO.MIN_COMBO) {
-            this.slowMoUntil = Date.now() + CONFIG.SLOW_MO.DURATION;
-        }
+        // Slow-mo on high combos (disabled)
+        // if (this.combo >= CONFIG.SLOW_MO.MIN_COMBO) {
+        //     this.slowMoUntil = Date.now() + CONFIG.SLOW_MO.DURATION;
+        // }
 
         // Restart combo settle timer
         clearTimeout(this.comboTimer);

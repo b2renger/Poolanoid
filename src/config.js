@@ -25,7 +25,7 @@ export const CONFIG = {
 
     // Physics Engine
     PHYSICS: {
-        GRAVITY: -9.82,
+        GRAVITY: 0,
         DT: 1 / 60,
         MIN_STEP_DT: 1 / 240,
         MAX_SUBSTEPS: 30,
@@ -36,35 +36,35 @@ export const CONFIG = {
         DEFAULT_RESTITUTION: 0.35,
 
         BALL_MASS: 1,
-        BALL_LINEAR_DAMPING: 0.38,
-        BALL_ANGULAR_DAMPING: 0.35,
+        BALL_LINEAR_DAMPING: 0.6,
         BALL_SLEEP_SPEED_LIMIT: 0.1,
         BALL_SLEEP_TIME_LIMIT: 0.5,
 
         BALL_TABLE_FRICTION: 0.42,
         BALL_TABLE_RESTITUTION: 0.12,
 
-        BALL_CUSHION_FRICTION: 0.02,
-        BALL_CUSHION_RESTITUTION: 0.80,
+        BALL_CUSHION_FRICTION: 0.015,
+        BALL_CUSHION_RESTITUTION: 0.92,
     },
 
     // Dimensions (world units)
     DIMENSIONS: {
-        TABLE_WIDTH: 10,
+        TABLE_WIDTH: 9,
         TABLE_HEIGHT: 0.1,
-        TABLE_DEPTH: 5,
+        TABLE_DEPTH: 6,
 
-        WALL_WIDTH: 3,
+        WALL_MIN_LENGTH: 2,
+        WALL_MAX_LENGTH: 5,
         WALL_HEIGHT: 0.5,
         WALL_THICKNESS: 0.12,
 
-        BALL_RADIUS: 0.17,
+        BALL_RADIUS: 0.2,
         BALL_SEGMENTS: 16,
 
         BOUNDARY_WALL_THICKNESS: 0.1,
 
-        WALL_SPAWN_WIDTH: 8,
-        WALL_SPAWN_DEPTH: 3
+        WALL_SPAWN_WIDTH: 7,
+        WALL_SPAWN_DEPTH: 4
     },
 
     // Camera & Rendering
@@ -157,10 +157,10 @@ export const CONFIG = {
         {
             maxLevel: 4,  // Levels 3–4: introduce sticky + bomb
             types: [
-                { threshold: 0.15, type: 'extraBounce' },  // 15%
-                { threshold: 0.30, type: 'lowBounce' },    // 15%
-                { threshold: 0.45, type: 'sticky' },       // 15%
-                { threshold: 0.50, type: 'bomb' },         // 5%
+                { threshold: 0.20, type: 'extraBounce' },  // 15%
+                { threshold: 0.35, type: 'lowBounce' },    // 15%
+                { threshold: 0.40, type: 'sticky' },       // 15%
+                { threshold: 0.45, type: 'bomb' },         // 5%
                 { threshold: 1.00, type: 'normal' },       // 45%
             ]
         },
@@ -169,10 +169,10 @@ export const CONFIG = {
             types: [
                 { threshold: 0.15, type: 'extraBounce' },  // 15%
                 { threshold: 0.30, type: 'lowBounce' },    // 15%
-                { threshold: 0.42, type: 'sticky' },       // 12%
-                { threshold: 0.50, type: 'extraShot' },    //  8%
-                { threshold: 0.54, type: 'bomb' },         //  4%
-                { threshold: 0.58, type: 'multiBall' },    //  4%
+                { threshold: 0.40, type: 'sticky' },       // 12%
+                { threshold: 0.46, type: 'extraShot' },    //  8%
+                { threshold: 0.50, type: 'bomb' },         //  4%
+                { threshold: 0.55, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
             ]
         },
@@ -182,7 +182,7 @@ export const CONFIG = {
                 { threshold: 0.12, type: 'extraBounce' },  // 12%
                 { threshold: 0.24, type: 'lowBounce' },    // 12%
                 { threshold: 0.36, type: 'sticky' },       //  8%
-                { threshold: 0.46, type: 'extraShot' },    //  6%
+                { threshold: 0.45, type: 'extraShot' },    //  6%
                 { threshold: 0.49, type: 'bomb' },         //  6%
                 { threshold: 0.52, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%

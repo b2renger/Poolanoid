@@ -76,7 +76,7 @@ export class WallManager {
         this.wallContactMaterials = [];
         this.powerupWalls = [];
 
-        const { WALL_WIDTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH } = CONFIG.DIMENSIONS;
+        const { WALL_MIN_LENGTH, WALL_MAX_LENGTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH } = CONFIG.DIMENSIONS;
         const wallCount = CONFIG.GAME.BASE_WALL_COUNT + (level - 1) * CONFIG.GAME.WALLS_PER_LEVEL;
         const spawnRates = this._getSpawnRates(level);
 
@@ -106,13 +106,17 @@ export class WallManager {
             const behavior = this._getBehavior(type);
             const color = isPowerUp ? CONFIG.POWERUPS[type].color : CONFIG.WALL_BEHAVIORS[type].color;
 
+            // Randomize wall length
+            const wallLength = WALL_MIN_LENGTH + Math.random() * (WALL_MAX_LENGTH - WALL_MIN_LENGTH);
+
             // Visual
-            const geometry = new THREE.BoxGeometry(WALL_WIDTH, WALL_HEIGHT, WALL_THICKNESS);
+            const geometry = new THREE.BoxGeometry(wallLength, WALL_HEIGHT, WALL_THICKNESS);
+            const isSpecial = isPowerUp || type !== 'normal';
             const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
                 color,
                 shininess: CONFIG.MATERIALS.WALL_SHININESS,
-                emissive: isPowerUp ? color : 0x000000,
-                emissiveIntensity: isPowerUp ? (type === 'bomb' ? 0.7 : 0.5) : 0
+                emissive: isSpecial ? color : 0x000000,
+                emissiveIntensity: isSpecial ? (type === 'bomb' ? 0.7 : 0.5) : 0
             }));
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -123,7 +127,7 @@ export class WallManager {
             // Physics
             const body = new CANNON.Body({
                 type: CANNON.Body.STATIC,
-                shape: new CANNON.Box(new CANNON.Vec3(WALL_WIDTH / 2, WALL_HEIGHT / 2, WALL_THICKNESS / 2)),
+                shape: new CANNON.Box(new CANNON.Vec3(wallLength / 2, WALL_HEIGHT / 2, WALL_THICKNESS / 2)),
                 position: new CANNON.Vec3(x, y, z),
                 material: behaviorMaterials[behavior]
             });
@@ -133,7 +137,7 @@ export class WallManager {
 
             const wall = { mesh, body, type, isPowerUp };
             this.walls.push(wall);
-            if (isPowerUp) this.powerupWalls.push(wall);
+            if (isSpecial) this.powerupWalls.push(wall);
         }
     }
 
@@ -147,7 +151,7 @@ export class WallManager {
         const index = this.walls.indexOf(wall);
         if (index > -1) this.walls.splice(index, 1);
 
-        if (wall.isPowerUp) {
+        if (wall.isPowerUp || wall.type !== 'normal') {
             const pIdx = this.powerupWalls.indexOf(wall);
             if (pIdx > -1) this.powerupWalls.splice(pIdx, 1);
         }
@@ -160,9 +164,9 @@ export class WallManager {
             this.onPowerUp(wall.type, wall.body.position);
         }
 
-        // Bomb chain reaction: queue nearby walls for removal
+        // Bomb chain reaction: destroy all walls intersecting the bomb
         if (wall.type === 'bomb') {
-            this._triggerBomb(wall.body.position);
+            this._triggerBomb(wall.body);
         }
 
         if (this.onCountChanged) this.onCountChanged();
@@ -193,15 +197,23 @@ export class WallManager {
         this.fadingWalls.push(wall);
     }
 
-    /** Destroy all walls within bomb radius, queueing them for removal. */
-    _triggerBomb(position) {
-        const radius = CONFIG.POWERUPS.bomb.radius;
-        const radiusSq = radius * radius;
+    /** Compute the XZ axis-aligned half-extents for a rotated box body. */
+    _xzAABB(body) {
+        const half = body.shapes[0].halfExtents;
+        const angle = 2 * Math.atan2(body.quaternion.y, body.quaternion.w);
+        const cos = Math.abs(Math.cos(angle));
+        const sin = Math.abs(Math.sin(angle));
+        return { hx: cos * half.x + sin * half.z, hz: sin * half.x + cos * half.z };
+    }
+
+    /** Destroy all walls whose AABB intersects the bomb wall's AABB. */
+    _triggerBomb(bombBody) {
+        const bAABB = this._xzAABB(bombBody);
         for (const wall of this.walls) {
             if (wall.removing) continue;
-            const dx = wall.body.position.x - position.x;
-            const dz = wall.body.position.z - position.z;
-            if (dx * dx + dz * dz <= radiusSq) {
+            const wAABB = this._xzAABB(wall.body);
+            if (Math.abs(bombBody.position.x - wall.body.position.x) < bAABB.hx + wAABB.hx &&
+                Math.abs(bombBody.position.z - wall.body.position.z) < bAABB.hz + wAABB.hz) {
                 wall.removing = true;
                 this.wallRemovalQueue.push({ wall, impactPos: wall.body.position.clone() });
             }
