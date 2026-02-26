@@ -141,22 +141,22 @@ export class WallManager {
         }
     }
 
-    _removeWall(wall, impactPos) {
-        if (this.removedBodies.has(wall.body.id)) return;
-
-        // Remove from physics & wall list first (before bomb chain iterates this.walls)
+    /** Remove a wall's physics body and bookkeeping. Returns false if already removed. */
+    _detachWall(wall) {
+        if (this.removedBodies.has(wall.body.id)) return false;
         this.removedBodies.add(wall.body.id);
         this.physics.removeBody(wall.body);
-
-        const index = this.walls.indexOf(wall);
-        if (index > -1) this.walls.splice(index, 1);
-
+        const idx = this.walls.indexOf(wall);
+        if (idx > -1) this.walls.splice(idx, 1);
         if (wall.isPowerUp || wall.type !== 'normal') {
             const pIdx = this.powerupWalls.indexOf(wall);
             if (pIdx > -1) this.powerupWalls.splice(pIdx, 1);
         }
+        return true;
+    }
 
-        // Callbacks
+    /** Play visual effects (callbacks, particles, flash, sound) and fade out mesh. */
+    _showRemoval(wall, impactPos) {
         if (this.onWallRemoved && impactPos) {
             this.onWallRemoved(impactPos, wall.type, wall.isPowerUp);
         }
@@ -164,18 +164,7 @@ export class WallManager {
             this.onPowerUp(wall.type, wall.body.position);
         }
 
-        // Bomb chain reaction: destroy all walls intersecting the bomb
-        if (wall.type === 'bomb') {
-            this._triggerBomb(wall.body);
-        }
-
-        if (this.onCountChanged) this.onCountChanged();
-
-        if (this.walls.length === 0 && this.onAllCleared) {
-            this.onAllCleared();
-        }
-
-        // Fade out mesh (collider already gone)
+        // Fade out mesh
         wall.mesh.material.transparent = true;
         const fadeOutDuration = CONFIG.EFFECTS.WALL_FADE_DURATION;
         const startTime = Date.now();
@@ -197,6 +186,20 @@ export class WallManager {
         this.fadingWalls.push(wall);
     }
 
+    _removeWall(wall, impactPos) {
+        if (!this._detachWall(wall)) return;
+
+        this._showRemoval(wall, impactPos);
+
+        // Bomb chain reaction: detach intersecting walls immediately, stagger visuals
+        if (wall.type === 'bomb') {
+            this._triggerBomb(wall.body);
+        }
+
+        if (this.onCountChanged) this.onCountChanged();
+        if (this.walls.length === 0 && this.onAllCleared) this.onAllCleared();
+    }
+
     /** Compute the XZ axis-aligned half-extents for a rotated box body. */
     _xzAABB(body) {
         const half = body.shapes[0].halfExtents;
@@ -209,15 +212,31 @@ export class WallManager {
     /** Destroy all walls whose AABB intersects the bomb wall's AABB. */
     _triggerBomb(bombBody) {
         const bAABB = this._xzAABB(bombBody);
+        const victims = [];
         for (const wall of this.walls) {
             if (wall.removing) continue;
             const wAABB = this._xzAABB(wall.body);
             if (Math.abs(bombBody.position.x - wall.body.position.x) < bAABB.hx + wAABB.hx &&
                 Math.abs(bombBody.position.z - wall.body.position.z) < bAABB.hz + wAABB.hz) {
                 wall.removing = true;
-                this.wallRemovalQueue.push({ wall, impactPos: wall.body.position.clone() });
+                victims.push(wall);
             }
         }
+
+        // Detach all physics bodies immediately (no more collisions)
+        for (const wall of victims) this._detachWall(wall);
+
+        // Update count once for all detached walls
+        if (victims.length > 0 && this.onCountChanged) this.onCountChanged();
+        if (this.walls.length === 0 && this.onAllCleared) this.onAllCleared();
+
+        // Stagger visual effects across frames (~50ms apart)
+        victims.forEach((wall, i) => {
+            setTimeout(() => {
+                this._showRemoval(wall, wall.body.position.clone());
+                if (wall.type === 'bomb') this._triggerBomb(wall.body);
+            }, (i + 1) * 50);
+        });
     }
 
     /** Update power-up wall glow animation. Call from game loop. */

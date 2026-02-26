@@ -43,7 +43,7 @@ export const CONFIG = {
         BALL_TABLE_FRICTION: 0.42,
         BALL_TABLE_RESTITUTION: 0.12,
 
-        BALL_CUSHION_FRICTION: 0.015,
+        BALL_CUSHION_FRICTION: 0.016,
         BALL_CUSHION_RESTITUTION: 0.92,
     },
 
@@ -84,6 +84,7 @@ export const CONFIG = {
         IMPULSE_MULTIPLIER: 4,
         TOUCH_HIT_RADIUS: 0.8,
         MOUSE_HIT_RADIUS: 0.15,
+        AIM_LINE_MIN_LENGTH: 10,
         AIM_LINE_MAX_LENGTH: 4,
         AIM_LINE_FADE_LEVEL: 10,
     },
@@ -150,7 +151,7 @@ export const CONFIG = {
             maxLevel: 2,  // Levels 1–2: introductory, behavior walls only
             types: [
                 { threshold: 0.10, type: 'extraBounce' },  // 10%
-                { threshold: 0.20, type: 'lowBounce' },    // 10%
+                { threshold: 0.20, type: 'lowBounce' }, 
                 { threshold: 1.00, type: 'normal' },       // 80%
             ]
         },
@@ -170,7 +171,7 @@ export const CONFIG = {
                 { threshold: 0.15, type: 'extraBounce' },  // 15%
                 { threshold: 0.30, type: 'lowBounce' },    // 15%
                 { threshold: 0.40, type: 'sticky' },       // 12%
-                { threshold: 0.46, type: 'extraShot' },    //  8%
+                { threshold: 0.45, type: 'extraShot' },    //  8%
                 { threshold: 0.50, type: 'bomb' },         //  4%
                 { threshold: 0.55, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
@@ -180,11 +181,11 @@ export const CONFIG = {
             maxLevel: Infinity,  // Levels 7+: full variety, fewer normals
             types: [
                 { threshold: 0.12, type: 'extraBounce' },  // 12%
-                { threshold: 0.24, type: 'lowBounce' },    // 12%
+                { threshold: 0.26, type: 'lowBounce' },    // 12%
                 { threshold: 0.36, type: 'sticky' },       //  8%
-                { threshold: 0.45, type: 'extraShot' },    //  6%
-                { threshold: 0.49, type: 'bomb' },         //  6%
-                { threshold: 0.52, type: 'multiBall' },    //  4%
+                { threshold: 0.42, type: 'extraShot' },    //  6%
+                { threshold: 0.46, type: 'bomb' },         //  6%
+                { threshold: 0.51, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
