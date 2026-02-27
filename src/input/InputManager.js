@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
 /**
  * Handles mouse and touch input for aiming and shooting the ball.
  */
@@ -12,6 +14,11 @@ export class InputManager {
         this.aimStart = new THREE.Vector3();
         this.aimEnd = new THREE.Vector3();
         this.activeTouchId = null;
+
+        // Second-finger rotation state
+        this.rotateTouchId = null;
+        this.rotateLastX = 0;
+        this.viewAngle = 0;
 
         // Callbacks (set by game)
         /** @type {Function} Returns true if a shot is allowed. */
@@ -63,6 +70,16 @@ export class InputManager {
             if (!this.canShoot()) return;
             if (event.type === 'touchstart') event.preventDefault();
 
+            // If already aiming, capture second finger for rotation
+            if (this.isAiming && event.changedTouches) {
+                const newTouch = event.changedTouches[0];
+                if (newTouch.identifier !== this.activeTouchId && this.rotateTouchId === null) {
+                    this.rotateTouchId = newTouch.identifier;
+                    this.rotateLastX = newTouch.clientX;
+                }
+                return;
+            }
+
             const pos = getInputPosition(event);
             if (pos.touchId !== null && this.activeTouchId !== null) return;
 
@@ -95,8 +112,21 @@ export class InputManager {
         };
 
         const onInputMove = (event) => {
-            if (!this.isAiming) return;
             if (event.type === 'touchmove') event.preventDefault();
+
+            // Handle rotation finger
+            if (this.rotateTouchId !== null && event.touches) {
+                for (let i = 0; i < event.touches.length; i++) {
+                    if (event.touches[i].identifier === this.rotateTouchId) {
+                        const rx = event.touches[i].clientX;
+                        this.viewAngle += (rx - this.rotateLastX) * CONFIG.CAMERA.ROTATE_SENSITIVITY;
+                        this.rotateLastX = rx;
+                        break;
+                    }
+                }
+            }
+
+            if (!this.isAiming) return;
 
             const pos = getInputPosition(event);
             if (this.activeTouchId !== null && pos.touchId !== this.activeTouchId) return;
@@ -118,6 +148,16 @@ export class InputManager {
         };
 
         const onInputEnd = (event) => {
+            // Check if rotation finger was released
+            if (event.changedTouches) {
+                for (let i = 0; i < event.changedTouches.length; i++) {
+                    if (event.changedTouches[i].identifier === this.rotateTouchId) {
+                        this.rotateTouchId = null;
+                        break;
+                    }
+                }
+            }
+
             if (!this.isAiming) return;
 
             if (event.type === 'touchend' || event.type === 'touchcancel') {
@@ -139,6 +179,7 @@ export class InputManager {
             // Reset aiming state
             this.isAiming = false;
             this.activeTouchId = null;
+            this.rotateTouchId = null;
             this.aimingLine.visible = false;
             this.controls.enabled = true;
             if (this.onAimPowerChange) this.onAimPowerChange(null);
@@ -155,6 +196,13 @@ export class InputManager {
         this._onInputStart = onInputStart;
         this._onInputMove = onInputMove;
         this._onInputEnd = onInputEnd;
+    }
+
+    /** Apply accumulated view rotation on top of the current camera orientation. */
+    applyViewRotation() {
+        if (this.viewAngle !== 0) {
+            this.camera.rotateOnWorldAxis(Y_AXIS, this.viewAngle);
+        }
     }
 
     /** Update power ratio callback and aim line geometry from current aimStart/aimEnd. */

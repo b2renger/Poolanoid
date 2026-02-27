@@ -345,6 +345,7 @@ export class PoolGame {
             }
 
             this.controls.update();
+            this.input.applyViewRotation();
 
             // Screen shake — temporary offset applied after controls, restored after render
             let shakeX = 0, shakeZ = 0;

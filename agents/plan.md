@@ -1493,9 +1493,25 @@ Added `AIM_LINE_MIN_SCALE: 0.15` in config. The `updateAimLineScale()` formula n
 
 Extracted aim line drawing and power ratio logic into a shared `_updateAim()` method on `InputManager`. Called from both `onInputStart` (where `aimEnd` is now computed from the initial click position via raycaster intersection) and `onInputMove`. Eliminates the stale-geometry flash on the first frame of aiming.
 
+### Two-finger camera rotation while aiming
+
+While aiming with the first finger, the user can place a second finger and drag horizontally to rotate the camera around the table. This lets the player reposition the view without cancelling their aim.
+
+| Change | File | Detail |
+|--------|------|--------|
+| **`ROTATE_SENSITIVITY`** | `config.js` | New constant (`0.01` rad/px) in the `CAMERA` section. Controls how fast the view rotates per pixel of horizontal drag. |
+| **Rotation state** | `InputManager.js` | Three new fields: `rotateTouchId` (second finger identifier), `rotateLastX` (last clientX), `viewAngle` (accumulated rotation in radians, persists between shots). |
+| **`onInputStart` — second finger capture** | `InputManager.js` | When `isAiming` and a new touch arrives via `changedTouches`, it's stored as the rotation finger instead of being rejected. |
+| **`onInputMove` — rotation handling** | `InputManager.js` | At the top of the handler (before the `!isAiming` guard), the rotation finger's horizontal delta updates `viewAngle`. |
+| **`onInputEnd` — rotation cleanup** | `InputManager.js` | Checks `changedTouches` for the rotation finger and clears `rotateTouchId`. Also cleared when a shot fires. |
+| **`applyViewRotation()`** | `InputManager.js` | New public method. When `viewAngle ≠ 0`, calls `camera.rotateOnWorldAxis(Y_AXIS, viewAngle)`. Applied as a post-processing step — does not modify `camera.up` or the default orientation. |
+| **Game loop integration** | `PoolGame.js` | `this.input.applyViewRotation()` called every frame right after `this.controls.update()`. |
+
+**How it works:** `controls.update()` resets the camera orientation each frame via `lookAt`. `applyViewRotation()` then applies the user's rotation on top using `rotateOnWorldAxis`, so the default camera behaviour is completely unchanged when `viewAngle` is 0. The raycaster automatically picks up the rotated camera state, so aiming stays accurate in the rotated view.
+
 ---
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Last Updated:** 2026-02-27
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

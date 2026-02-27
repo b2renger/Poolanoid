@@ -77,7 +77,8 @@ export const CONFIG = {
         POSITION_Y: 12,
         FOG_NEAR: 8,
         FOG_FAR: 22,
-        ORBIT_DAMPING: 0.05
+        ORBIT_DAMPING: 0.05,
+        ROTATE_SENSITIVITY: 0.01
     },
 
     // Aiming Mechanics
