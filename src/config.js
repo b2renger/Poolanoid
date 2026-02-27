@@ -120,8 +120,8 @@ export const CONFIG = {
     // Power-up walls (trigger effect when destroyed)
     POWERUPS: {
         extraShot: { color: 0x00FFFF, label: '+1 Shot!', shots: 1 },
-        bomb:      { color: 0xFF0000, label: 'BOOM!', radius: 1.5 },
-        multiBall: { color: 0x00BFFF, label: 'Multi-Ball!', count: 2 },
+        bomb:      { color: 0xFF0000, label: 'BOOOOM!', radius: 1.5 },
+        multiBall: { color: 0x00BFFF, label: 'Multi-Ball !!', count: 2 },
     },
 
     // Level-scaled wall spawn rates
@@ -175,7 +175,7 @@ export const CONFIG = {
                 { threshold: 0.20, type: 'extraBounce' },  // 15%
                 { threshold: 0.40, type: 'lowBounce' },    // 15%
                 { threshold: 0.45, type: 'sticky' },       // 12%
-                { threshold: 0.49, type: 'extraShot' },    //  8%
+                { threshold: 0.50, type: 'extraShot' },    //  8%
                 { threshold: 0.52, type: 'bomb' },         //  4%
                 { threshold: 0.54, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
@@ -187,9 +187,9 @@ export const CONFIG = {
                 { threshold: 0.20, type: 'extraBounce' },  // 12%
                 { threshold: 0.40, type: 'lowBounce' },    // 12%
                 { threshold: 0.45, type: 'sticky' },       //  8%
-                { threshold: 0.48, type: 'extraShot' },    //  6%
-                { threshold: 0.50, type: 'bomb' },         //  6%
-                { threshold: 0.52, type: 'multiBall' },    //  4%
+                { threshold: 0.50, type: 'extraShot' },    //  6%
+                { threshold: 0.52, type: 'bomb' },         //  6%
+                { threshold: 0.55, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
@@ -200,7 +200,7 @@ export const CONFIG = {
         POINTS: {
             normal: 1,
             extraBounce: 1,
-            lowBounce: 1,
+            lowBounce: 2,
             sticky: 4,
         },
     },

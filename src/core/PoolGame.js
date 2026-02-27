@@ -379,6 +379,13 @@ export class PoolGame {
     }
 
     nextLevel() {
+        // Bonus points for unused shots
+        const shotBonus = this.shotsRemaining * 10;
+        if (shotBonus > 0) {
+            this.score += shotBonus;
+            this.floatingText.spawn(`+${shotBonus} shot bonus!`, this.ball.mesh.position, '#E4FF30');
+        }
+
         this.level++;
         this.shotsRemaining = CONFIG.GAME.BASE_SHOTS + (this.level - 1) * CONFIG.GAME.EXTRA_SHOTS_PER_LEVEL;
         this.ball.stop();
