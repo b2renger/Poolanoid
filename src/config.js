@@ -2,8 +2,8 @@ export const CONFIG = {
     // Game Rules
     GAME: {
         BASE_WALL_COUNT: 10,
-        WALLS_PER_LEVEL: 5,
-        BASE_SHOTS: 6,
+        WALLS_PER_LEVEL: 4,
+        BASE_SHOTS: 5,
         EXTRA_SHOTS_PER_LEVEL: 0
     },
 
@@ -15,6 +15,7 @@ export const CONFIG = {
         BALL: 0xFFD700,
         AIM_LINE: 0xE4FF30,
         UI_TEXT: '#E4FF30',
+        BALL_AIM_MAX: 0xFF2200,
         IMPACT_RING: 0x008BFF,
         GAME_OVER_BG: 'rgba(54, 47, 79, 0.92)',
         BUTTON_PRIMARY: '#008BFF',
@@ -36,7 +37,7 @@ export const CONFIG = {
         DEFAULT_RESTITUTION: 0.35,
 
         BALL_MASS: 1,
-        BALL_LINEAR_DAMPING: 0.6,
+        BALL_LINEAR_DAMPING: 0.82,
         BALL_SLEEP_SPEED_LIMIT: 0.1,
         BALL_SLEEP_TIME_LIMIT: 0.5,
 
@@ -49,22 +50,23 @@ export const CONFIG = {
 
     // Dimensions (world units)
     DIMENSIONS: {
-        TABLE_WIDTH: 9,
-        TABLE_HEIGHT: 0.1,
-        TABLE_DEPTH: 6,
+        TABLE_WIDTH: 10,
+        TABLE_HEIGHT: 0.21,
+        TABLE_DEPTH: 7,
 
         WALL_MIN_LENGTH: 2,
         WALL_MAX_LENGTH: 5,
         WALL_HEIGHT: 0.5,
-        WALL_THICKNESS: 0.12,
+        WALL_THICKNESS: 0.025,
 
         BALL_RADIUS: 0.2,
         BALL_SEGMENTS: 16,
 
-        BOUNDARY_WALL_THICKNESS: 0.1,
+        BOUNDARY_WALL_THICKNESS: 0.15,
 
         WALL_SPAWN_WIDTH: 7,
-        WALL_SPAWN_DEPTH: 4
+        WALL_SPAWN_DEPTH: 4,
+        BALL_SPAWN_CLEARANCE: 0.5
     },
 
     // Camera & Rendering
@@ -80,13 +82,14 @@ export const CONFIG = {
 
     // Aiming Mechanics
     AIMING: {
-        MAX_IMPULSE: 50,
-        IMPULSE_MULTIPLIER: 4,
+        MAX_IMPULSE: 40,
+        IMPULSE_MULTIPLIER: 12,
         TOUCH_HIT_RADIUS: 0.8,
         MOUSE_HIT_RADIUS: 0.15,
-        AIM_LINE_MIN_LENGTH: 10,
+        AIM_LINE_MIN_LENGTH: 1,
         AIM_LINE_MAX_LENGTH: 4,
         AIM_LINE_FADE_LEVEL: 10,
+        AIM_LINE_MIN_SCALE: 0.15,
     },
 
     // Visual Effects
@@ -150,8 +153,8 @@ export const CONFIG = {
         {
             maxLevel: 2,  // Levels 1–2: introductory, behavior walls only
             types: [
-                { threshold: 0.10, type: 'extraBounce' },  // 10%
-                { threshold: 0.20, type: 'lowBounce' }, 
+                { threshold: 0.15, type: 'extraBounce' },  // 10%
+                { threshold: 0.30, type: 'lowBounce' }, 
                 { threshold: 1.00, type: 'normal' },       // 80%
             ]
         },
@@ -159,33 +162,33 @@ export const CONFIG = {
             maxLevel: 4,  // Levels 3–4: introduce sticky + bomb
             types: [
                 { threshold: 0.20, type: 'extraBounce' },  // 15%
-                { threshold: 0.35, type: 'lowBounce' },    // 15%
-                { threshold: 0.40, type: 'sticky' },       // 15%
-                { threshold: 0.45, type: 'bomb' },         // 5%
+                { threshold: 0.40, type: 'lowBounce' },    // 15%
+                { threshold: 0.45, type: 'sticky' },       // 15%
+                { threshold: 0.48, type: 'bomb' },         // 5%
                 { threshold: 1.00, type: 'normal' },       // 45%
             ]
         },
         {
             maxLevel: 6,  // Levels 5–6: add extraShot + multiBall
             types: [
-                { threshold: 0.15, type: 'extraBounce' },  // 15%
-                { threshold: 0.30, type: 'lowBounce' },    // 15%
-                { threshold: 0.40, type: 'sticky' },       // 12%
-                { threshold: 0.45, type: 'extraShot' },    //  8%
-                { threshold: 0.50, type: 'bomb' },         //  4%
-                { threshold: 0.55, type: 'multiBall' },    //  4%
+                { threshold: 0.20, type: 'extraBounce' },  // 15%
+                { threshold: 0.40, type: 'lowBounce' },    // 15%
+                { threshold: 0.45, type: 'sticky' },       // 12%
+                { threshold: 0.49, type: 'extraShot' },    //  8%
+                { threshold: 0.52, type: 'bomb' },         //  4%
+                { threshold: 0.54, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
             ]
         },
         {
             maxLevel: Infinity,  // Levels 7+: full variety, fewer normals
             types: [
-                { threshold: 0.12, type: 'extraBounce' },  // 12%
-                { threshold: 0.26, type: 'lowBounce' },    // 12%
-                { threshold: 0.36, type: 'sticky' },       //  8%
-                { threshold: 0.42, type: 'extraShot' },    //  6%
-                { threshold: 0.46, type: 'bomb' },         //  6%
-                { threshold: 0.51, type: 'multiBall' },    //  4%
+                { threshold: 0.20, type: 'extraBounce' },  // 12%
+                { threshold: 0.40, type: 'lowBounce' },    // 12%
+                { threshold: 0.45, type: 'sticky' },       //  8%
+                { threshold: 0.48, type: 'extraShot' },    //  6%
+                { threshold: 0.50, type: 'bomb' },         //  6%
+                { threshold: 0.52, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
@@ -237,7 +240,7 @@ export const CONFIG = {
 
     // Multi-ball power-up
     MULTI_BALL: {
-        IMPULSE_FACTOR: 0.6,
+        IMPULSE_FACTOR: 0.8,
         SPREAD_ANGLE: Math.PI * 2 / 3,
         TIMEOUT: 8000,
     },
@@ -315,8 +318,8 @@ export const CONFIG = {
 
     // Bloom post-processing
     BLOOM: {
-        STRENGTH: 0.5,
-        RADIUS: 0.4,
+        STRENGTH: 0.6,
+        RADIUS: 0.45,
         THRESHOLD: 0.6,
     },
 

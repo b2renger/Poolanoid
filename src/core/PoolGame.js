@@ -134,6 +134,24 @@ export class PoolGame {
         this.input.canShoot = () => this.isPlaying && !this.isGameOver && this.shotsRemaining > 0;
         this.input.getBallPosition = () => this.ball.mesh.position;
         this.input.onShoot = (direction, magnitude) => this.onShoot(direction, magnitude);
+        this._ballBaseColor = new THREE.Color(CONFIG.COLORS.BALL);
+        this._ballAimColor = new THREE.Color(CONFIG.COLORS.BALL_AIM_MAX);
+        this._ballTempColor = new THREE.Color();
+        this._ballBaseEmissive = CONFIG.MATERIALS.BALL_EMISSIVE_INTENSITY;
+        this._ballMaxEmissive = this._ballBaseEmissive * 1.8;
+        this.input.onAimPowerChange = (ratio) => {
+            const mat = this.ball.mesh.material;
+            if (ratio === null) {
+                mat.color.copy(this._ballBaseColor);
+                mat.emissive.copy(this._ballBaseColor);
+                mat.emissiveIntensity = this._ballBaseEmissive;
+            } else {
+                this._ballTempColor.copy(this._ballBaseColor).lerp(this._ballAimColor, ratio);
+                mat.color.copy(this._ballTempColor);
+                mat.emissive.copy(this._ballTempColor);
+                mat.emissiveIntensity = this._ballBaseEmissive + (this._ballMaxEmissive - this._ballBaseEmissive) * ratio;
+            }
+        };
 
         // Storage
         this.storage = new StorageManager();
@@ -191,7 +209,7 @@ export class PoolGame {
         this.effects.clear();
         this.floatingText.clear();
         this.particles.clear();
-        this.wallManager.createWalls(this.level, this.ball.body.material);
+        this.wallManager.createWalls(this.level, this.ball.body.material, this.ball.body.position);
         this.updateAimLineScale();
         this.hud.show();
         this.updateHUD();
@@ -257,7 +275,8 @@ export class PoolGame {
 
     updateAimLineScale() {
         const fade = CONFIG.AIMING.AIM_LINE_FADE_LEVEL;
-        this.input.aimLineScale = Math.max(0, 1 - (this.level - 1) / (fade - 1));
+        const minScale = CONFIG.AIMING.AIM_LINE_MIN_SCALE;
+        this.input.aimLineScale = Math.max(minScale, 1 - (this.level - 1) / (fade - 1));
     }
 
     onShoot(direction, magnitude) {
@@ -370,7 +389,7 @@ export class PoolGame {
             this.effects.clear();
             this.floatingText.clear();
             this.particles.clear();
-            this.wallManager.createWalls(this.level, this.ball.body.material);
+            this.wallManager.createWalls(this.level, this.ball.body.material, this.ball.body.position);
             this.updateAimLineScale();
             this.updateHUD();
         }, CONFIG.EFFECTS.NEXT_LEVEL_DELAY);

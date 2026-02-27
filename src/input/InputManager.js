@@ -20,6 +20,8 @@ export class InputManager {
         this.getBallPosition = () => new THREE.Vector3();
         /** @type {Function|null} Called with (direction: THREE.Vector3, magnitude: number). */
         this.onShoot = null;
+        /** @type {Function|null} Called with (powerRatio: number) 0–1 during aiming, null on release. */
+        this.onAimPowerChange = null;
         /** Aim line scale factor (0 = hidden, 1 = full length). Set by game per level. */
         this.aimLineScale = 1;
 
@@ -78,9 +80,17 @@ export class InputManager {
                 this.isAiming = true;
                 this.activeTouchId = pos.touchId;
                 this.aimStart.copy(ballPos);
-                this.aimEnd.copy(this.aimStart);
+
+                // Compute initial aimEnd from click position
+                const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -ballPos.y);
+                const intersection = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane, intersection);
+                intersection.y = ballPos.y;
+                this.aimEnd.copy(intersection);
+
                 this.aimingLine.visible = this.aimLineScale > 0;
                 this.controls.enabled = false;
+                this._updateAim();
             }
         };
 
@@ -104,29 +114,7 @@ export class InputManager {
 
             this.aimStart.copy(ballPos);
             this.aimEnd.copy(intersection);
-
-            // Draw predictive line in shot direction (reversed from drag)
-            if (this.aimLineScale > 0) {
-                const dir = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd);
-                const dragDist = dir.length();
-                if (dragDist > 0.01) {
-                    dir.normalize();
-                    const maxLen = CONFIG.AIMING.AIM_LINE_MAX_LENGTH;
-                    const len = Math.min(dragDist, maxLen) * this.aimLineScale;
-                    const lineEnd = new THREE.Vector3().copy(this.aimStart).addScaledVector(dir, len);
-
-                    // Only draw if the line meets minimum pixel length on screen
-                    const startNDC = this.aimStart.clone().project(this.camera);
-                    const endNDC = lineEnd.clone().project(this.camera);
-                    const dx = (endNDC.x - startNDC.x) * window.innerWidth * 0.5;
-                    const dy = (endNDC.y - startNDC.y) * window.innerHeight * 0.5;
-                    const pixelLen = Math.sqrt(dx * dx + dy * dy);
-
-                    if (pixelLen >= CONFIG.AIMING.AIM_LINE_MIN_LENGTH) {
-                        this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, lineEnd]);
-                    }
-                }
-            }
+            this._updateAim();
         };
 
         const onInputEnd = (event) => {
@@ -153,6 +141,7 @@ export class InputManager {
             this.activeTouchId = null;
             this.aimingLine.visible = false;
             this.controls.enabled = true;
+            if (this.onAimPowerChange) this.onAimPowerChange(null);
         };
 
         window.addEventListener('mousedown', onInputStart);
@@ -166,6 +155,38 @@ export class InputManager {
         this._onInputStart = onInputStart;
         this._onInputMove = onInputMove;
         this._onInputEnd = onInputEnd;
+    }
+
+    /** Update power ratio callback and aim line geometry from current aimStart/aimEnd. */
+    _updateAim() {
+        // Notify power ratio for visual feedback (ball color)
+        if (this.onAimPowerChange) {
+            const dragDist = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd).length();
+            const magnitude = Math.min(dragDist * CONFIG.AIMING.IMPULSE_MULTIPLIER, CONFIG.AIMING.MAX_IMPULSE);
+            this.onAimPowerChange(magnitude / CONFIG.AIMING.MAX_IMPULSE);
+        }
+
+        // Draw predictive line in shot direction (reversed from drag)
+        if (this.aimLineScale > 0) {
+            const dir = new THREE.Vector3().subVectors(this.aimStart, this.aimEnd);
+            const dragDist = dir.length();
+            if (dragDist > 0.01) {
+                dir.normalize();
+                const len = CONFIG.AIMING.AIM_LINE_MAX_LENGTH * this.aimLineScale;
+                const lineEnd = new THREE.Vector3().copy(this.aimStart).addScaledVector(dir, len);
+
+                // Only draw if the line meets minimum pixel length on screen
+                const startNDC = this.aimStart.clone().project(this.camera);
+                const endNDC = lineEnd.clone().project(this.camera);
+                const dx = (endNDC.x - startNDC.x) * window.innerWidth * 0.5;
+                const dy = (endNDC.y - startNDC.y) * window.innerHeight * 0.5;
+                const pixelLen = Math.sqrt(dx * dx + dy * dy);
+
+                if (pixelLen >= CONFIG.AIMING.AIM_LINE_MIN_LENGTH) {
+                    this.aimingLine.geometry = new THREE.BufferGeometry().setFromPoints([this.aimStart, lineEnd]);
+                }
+            }
+        }
     }
 
     dispose() {

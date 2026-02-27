@@ -1465,9 +1465,37 @@ Each wall gets a random length at spawn, applied to both the visual `BoxGeometry
 
 The `collide` event fires mid-solver, so setting velocity to 0 inside the event could be overridden by Cannon's collision response. Fix: the event now sets a `pendingStickyStop` flag, and the ball is stopped **after** `physics.update()` completes in the game loop. Guarantees the velocity stays at zero.
 
+### Bomb chain reaction removed
+
+Bombs no longer trigger recursive chain explosions. When a bomb wall is destroyed, it destroys all walls whose AABB directly intersects it — but if one of those victims is also a bomb, it simply gets removed without triggering its own blast. Removed the recursive `_triggerBomb(wall.body)` call inside the staggered timeout in `WallManager.js`.
+
+### Wall spawn exclusion around ball
+
+Walls can no longer spawn on top of the ball. `WallManager.createWalls()` now accepts a `ballPosition` parameter. Each wall placement is validated using a point-to-line-segment distance check (the wall's center line in XZ, accounting for rotation and length). If the closest point on the wall segment is within `BALL_SPAWN_CLEARANCE` (0.5 units) of the ball, the position is re-rolled (up to 20 attempts). Both call sites in `PoolGame.js` (`startGame` and `nextLevel`) pass the current ball position.
+
+### Ball color feedback during aiming
+
+The ball now changes color to indicate shot power while aiming. A new `onAimPowerChange` callback on `InputManager` fires the power ratio (0–1) during drag. `PoolGame` uses `THREE.Color.lerp` to interpolate the ball's `color` and `emissive` from gold (`BALL: 0xFFD700`) to red-orange (`BALL_AIM_MAX: 0xFF2200`). The `emissiveIntensity` also scales up (×1.8 at max power) to keep the ball above the bloom threshold as red has lower luminance than gold. Color resets to gold on shot release.
+
+### Faster max power
+
+`IMPULSE_MULTIPLIER` increased from 4 to 12 (user-tuned). Max impulse reached with ~3.3 units of drag instead of 12.5. `MAX_IMPULSE` tuned down to 40 from 50.
+
+### Aim line always full length
+
+The aim line length no longer depends on drag distance. It always draws at `AIM_LINE_MAX_LENGTH × aimLineScale`, showing direction only. Power feedback is communicated through the ball color instead.
+
+### Aim line never fully disappears
+
+Added `AIM_LINE_MIN_SCALE: 0.15` in config. The `updateAimLineScale()` formula now floors at this value instead of 0, so the aim line keeps 15% of its length even at level 10+.
+
+### Aim state initialized on click
+
+Extracted aim line drawing and power ratio logic into a shared `_updateAim()` method on `InputManager`. Called from both `onInputStart` (where `aimEnd` is now computed from the initial click position via raycaster intersection) and `onInputMove`. Eliminates the stale-geometry flash on the first frame of aiming.
+
 ---
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Last Updated:** 2026-02-27
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

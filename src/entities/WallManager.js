@@ -65,8 +65,19 @@ export class WallManager {
         return this._isPowerUp(type) ? 'normal' : type;
     }
 
+    /** Squared distance from a point to a line segment in 2D (XZ plane). */
+    _pointToSegmentDistSq(px, pz, ax, az, bx, bz) {
+        const abx = bx - ax, abz = bz - az;
+        const apx = px - ax, apz = pz - az;
+        const lenSq = abx * abx + abz * abz;
+        const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apz * abz) / lenSq)) : 0;
+        const cx = ax + t * abx, cz = az + t * abz;
+        const dx = px - cx, dz = pz - cz;
+        return dx * dx + dz * dz;
+    }
+
     /** Generate breakable walls for the given level. */
-    createWalls(level, ballMaterial) {
+    createWalls(level, ballMaterial, ballPosition) {
         this.clear();
 
         // Remove previous level's contact materials
@@ -76,9 +87,12 @@ export class WallManager {
         this.wallContactMaterials = [];
         this.powerupWalls = [];
 
-        const { WALL_MIN_LENGTH, WALL_MAX_LENGTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH } = CONFIG.DIMENSIONS;
+        const { WALL_MIN_LENGTH, WALL_MAX_LENGTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH, BALL_SPAWN_CLEARANCE } = CONFIG.DIMENSIONS;
         const wallCount = CONFIG.GAME.BASE_WALL_COUNT + (level - 1) * CONFIG.GAME.WALLS_PER_LEVEL;
         const spawnRates = this._getSpawnRates(level);
+        const clearanceSq = BALL_SPAWN_CLEARANCE * BALL_SPAWN_CLEARANCE;
+        const ballX = ballPosition ? ballPosition.x : 0;
+        const ballZ = ballPosition ? ballPosition.z : 0;
 
         // Create one CANNON.Material + ContactMaterial per behavior type
         const behaviorMaterials = {};
@@ -94,10 +108,27 @@ export class WallManager {
         }
 
         for (let i = 0; i < wallCount; i++) {
-            const x = (Math.random() - 0.5) * WALL_SPAWN_WIDTH;
-            const z = (Math.random() - 0.5) * WALL_SPAWN_DEPTH;
+            let x, z, rotationY, wallLength;
+            const maxAttempts = 20;
+            let attempts = 0;
+
+            // Re-roll position until the wall doesn't overlap the ball
+            do {
+                x = (Math.random() - 0.5) * WALL_SPAWN_WIDTH;
+                z = (Math.random() - 0.5) * WALL_SPAWN_DEPTH;
+                rotationY = Math.random() * Math.PI * 2;
+                wallLength = WALL_MIN_LENGTH + Math.random() * (WALL_MAX_LENGTH - WALL_MIN_LENGTH);
+
+                const halfLen = wallLength / 2;
+                const dx = Math.cos(rotationY) * halfLen;
+                const dz = Math.sin(rotationY) * halfLen;
+                const distSq = this._pointToSegmentDistSq(ballX, ballZ, x - dx, z - dz, x + dx, z + dz);
+
+                if (distSq >= clearanceSq) break;
+                attempts++;
+            } while (attempts < maxAttempts);
+
             const y = WALL_HEIGHT / 2;
-            const rotationY = Math.random() * Math.PI * 2;
 
             const roll = Math.random();
             const wallDef = spawnRates.find(wt => roll < wt.threshold);
@@ -105,9 +136,6 @@ export class WallManager {
             const isPowerUp = this._isPowerUp(type);
             const behavior = this._getBehavior(type);
             const color = isPowerUp ? CONFIG.POWERUPS[type].color : CONFIG.WALL_BEHAVIORS[type].color;
-
-            // Randomize wall length
-            const wallLength = WALL_MIN_LENGTH + Math.random() * (WALL_MAX_LENGTH - WALL_MIN_LENGTH);
 
             // Visual
             const geometry = new THREE.BoxGeometry(wallLength, WALL_HEIGHT, WALL_THICKNESS);
@@ -234,7 +262,6 @@ export class WallManager {
         victims.forEach((wall, i) => {
             setTimeout(() => {
                 this._showRemoval(wall, wall.body.position.clone());
-                if (wall.type === 'bomb') this._triggerBomb(wall.body);
             }, (i + 1) * 50);
         });
     }
