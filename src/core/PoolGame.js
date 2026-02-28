@@ -387,7 +387,7 @@ export class PoolGame {
         }
 
         this.level++;
-        this.shotsRemaining = CONFIG.GAME.BASE_SHOTS + (this.level - 1) * CONFIG.GAME.EXTRA_SHOTS_PER_LEVEL;
+        this.shotsRemaining += CONFIG.GAME.BASE_SHOTS;
         this.ball.stop();
         this.clearExtraBalls();
         this.levelZoomStart = Date.now();

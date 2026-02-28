@@ -1509,9 +1509,22 @@ While aiming with the first finger, the user can place a second finger and drag 
 
 **How it works:** `controls.update()` resets the camera orientation each frame via `lookAt`. `applyViewRotation()` then applies the user's rotation on top using `rotateOnWorldAxis`, so the default camera behaviour is completely unchanged when `viewAngle` is 0. The raycaster automatically picks up the rotated camera state, so aiming stays accurate in the rotated view.
 
+### Shot carry-over between levels
+
+Reworked the shot economy so unused shots reward skillful play across levels instead of being reset.
+
+| Change | File | Detail |
+|--------|------|--------|
+| **`BASE_SHOTS` 5 → 6** | `config.js` | Each level grants 6 shots (up from 5). |
+| **Removed `EXTRA_SHOTS_PER_LEVEL`** | `config.js` | Dead config — no longer needed with carry-over model. |
+| **Shots accumulate on level up** | `PoolGame.js` | `nextLevel()` now does `shotsRemaining += BASE_SHOTS` instead of resetting to a flat value. Remaining shots carry over on top of the fresh 6. |
+
+**Before:** Level complete → `shotsRemaining = 5` (flat reset, unused shots only gave bonus points).
+**After:** Level complete → `shotsRemaining += 6` (unused shots carry forward *and* still give bonus points).
+
 ---
 
-**Document Version:** 1.3
-**Last Updated:** 2026-02-27
+**Document Version:** 1.4
+**Last Updated:** 2026-02-28
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

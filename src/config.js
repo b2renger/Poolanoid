@@ -3,8 +3,7 @@ export const CONFIG = {
     GAME: {
         BASE_WALL_COUNT: 10,
         WALLS_PER_LEVEL: 4,
-        BASE_SHOTS: 5,
-        EXTRA_SHOTS_PER_LEVEL: 0
+        BASE_SHOTS: 5
     },
 
     // Colors (hex numbers for Three.js, strings for CSS)
@@ -37,7 +36,7 @@ export const CONFIG = {
         DEFAULT_RESTITUTION: 0.35,
 
         BALL_MASS: 1,
-        BALL_LINEAR_DAMPING: 0.82,
+        BALL_LINEAR_DAMPING: 0.85,
         BALL_SLEEP_SPEED_LIMIT: 0.1,
         BALL_SLEEP_TIME_LIMIT: 0.5,
 
