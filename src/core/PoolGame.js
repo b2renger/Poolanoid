@@ -380,10 +380,10 @@ export class PoolGame {
 
     nextLevel() {
         // Bonus points for unused shots
-        const shotBonus = this.shotsRemaining * 10;
+        const remaining = this.shotsRemaining;
+        const shotBonus = remaining * 10;
         if (shotBonus > 0) {
             this.score += shotBonus;
-            this.floatingText.spawn(`+${shotBonus} shot bonus!`, this.ball.mesh.position, '#E4FF30');
         }
 
         this.level++;
@@ -392,8 +392,10 @@ export class PoolGame {
         this.clearExtraBalls();
         this.levelZoomStart = Date.now();
         this.audio.play('levelComplete');
+        this.hud.showLevelBanner(this.level, shotBonus, remaining);
 
         setTimeout(() => {
+            this.hud.hideLevelBanner();
             this.effects.clear();
             this.floatingText.clear();
             this.particles.clear();

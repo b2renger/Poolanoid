@@ -2,7 +2,7 @@ export const CONFIG = {
     // Game Rules
     GAME: {
         BASE_WALL_COUNT: 10,
-        WALLS_PER_LEVEL: 4,
+        WALLS_PER_LEVEL: 5,
         BASE_SHOTS: 5
     },
 
@@ -20,7 +20,9 @@ export const CONFIG = {
         BUTTON_PRIMARY: '#008BFF',
         BUTTON_HOVER: '#FF5FCF',
         BUTTON_TEXT: '#362F4F',
-        FPS_COLOR: '#0f0'
+        FPS_COLOR: '#0f0',
+        BONUS_POINTS: '#E4FF30',
+        BONUS_SHOTS: '#00FF9C',
     },
 
     // Physics Engine
@@ -36,7 +38,7 @@ export const CONFIG = {
         DEFAULT_RESTITUTION: 0.35,
 
         BALL_MASS: 1,
-        BALL_LINEAR_DAMPING: 0.85,
+        BALL_LINEAR_DAMPING: 0.83,
         BALL_SLEEP_SPEED_LIMIT: 0.1,
         BALL_SLEEP_TIME_LIMIT: 0.5,
 
@@ -102,7 +104,7 @@ export const CONFIG = {
         IMPACT_RING_OPACITY: 0.4,
         IMPACT_SCALE_START: 0.01,
         IMPACT_SCALE_RANGE: 0.9,
-        NEXT_LEVEL_DELAY: 1000,
+        NEXT_LEVEL_DELAY: 3000,
         FLASH_INTENSITY: 3,
         FLASH_DISTANCE: 4,
         FLASH_DURATION: 120,
@@ -174,21 +176,20 @@ export const CONFIG = {
                 { threshold: 0.20, type: 'extraBounce' },  // 15%
                 { threshold: 0.40, type: 'lowBounce' },    // 15%
                 { threshold: 0.45, type: 'sticky' },       // 12%
-                { threshold: 0.50, type: 'extraShot' },    //  8%
+                { threshold: 0.48, type: 'extraShot' },    //  8%
                 { threshold: 0.52, type: 'bomb' },         //  4%
-                { threshold: 0.54, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 38%
             ]
         },
         {
             maxLevel: Infinity,  // Levels 7+: full variety, fewer normals
             types: [
-                { threshold: 0.20, type: 'extraBounce' },  // 12%
-                { threshold: 0.40, type: 'lowBounce' },    // 12%
-                { threshold: 0.45, type: 'sticky' },       //  8%
-                { threshold: 0.50, type: 'extraShot' },    //  6%
-                { threshold: 0.52, type: 'bomb' },         //  6%
-                { threshold: 0.55, type: 'multiBall' },    //  4%
+                { threshold: 0.25, type: 'extraBounce' },  // 12%
+                { threshold: 0.50, type: 'lowBounce' },    // 12%
+                { threshold: 0.55, type: 'sticky' },       //  8%
+                { threshold: 0.57, type: 'extraShot' },    //  6%
+                { threshold: 0.59, type: 'bomb' },         //  6%
+                { threshold: 0.62, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
