@@ -298,7 +298,7 @@ This document outlines a comprehensive improvement roadmap for Poolanoid, transf
            IMPACT_RING_MIN_RADIUS: 0.05,
            IMPACT_RING_MAX_RADIUS: 0.22,
 
-           NEXT_LEVEL_DELAY: 1000       // ms
+           NEXT_LEVEL_DELAY: 3000       // ms (allows level banner to display fully)
        },
 
        // Wall Type Probabilities
@@ -820,6 +820,15 @@ COMBO: {
 2. **Slow-mo on high combo** — When combo ≥ 5, temporarily scale `CONFIG.PHYSICS.DT` to 50% for ~0.5s, then ease back to normal. Makes multi-hit ricochets feel cinematic. Store `this.slowMoUntil = Date.now() + 500` and check in `animate()`.
 
 3. **Level complete zoom** — On `nextLevel()`, briefly tween camera Y position down by 1 unit over ~0.3s (zoom in), hold for 0.2s, then ease back. Use the same accumulator pattern as screen shake.
+
+4. **Level complete banner** — On `nextLevel()`, the HUD displays a full-screen centered banner with staggered lines:
+   - **"Level X"** appears immediately in yellow (`COLORS.UI_TEXT`)
+   - **"+Y points"** pops in after 600ms in yellow (`COLORS.BONUS_POINTS`)
+   - **"Z bonus shot(s)"** pops in after 1200ms in green (`COLORS.BONUS_SHOTS`)
+   - Each line uses `scale(0.5→1)` pop-in animation with glow text-shadow
+   - All lines fade out after 1.2s past the last line's appearance
+   - Banner is cleared when `NEXT_LEVEL_DELAY` (3000ms) expires and the next level loads
+   - Implemented in `HUD.showLevelBanner(level, bonusPoints, bonusShots)` / `HUD.hideLevelBanner()`
 
 ---
 
@@ -1518,6 +1527,9 @@ Reworked the shot economy so unused shots reward skillful play across levels ins
 | **`BASE_SHOTS` 5 → 6** | `config.js` | Each level grants 6 shots (up from 5). |
 | **Removed `EXTRA_SHOTS_PER_LEVEL`** | `config.js` | Dead config — no longer needed with carry-over model. |
 | **Shots accumulate on level up** | `PoolGame.js` | `nextLevel()` now does `shotsRemaining += BASE_SHOTS` instead of resetting to a flat value. Remaining shots carry over on top of the fresh 6. |
+| **Level banner on level up** | `HUD.js`, `PoolGame.js` | `nextLevel()` now calls `hud.showLevelBanner()` instead of spawning floating text sprites. Displays "Level X", "+Y points" (yellow), and "Z bonus shots" (green) as staggered full-screen text with pop-in animations. |
+| **`NEXT_LEVEL_DELAY` 1000 → 3000** | `config.js` | Increased to give players time to read the level banner before walls regenerate. |
+| **`COLORS.BONUS_POINTS` / `COLORS.BONUS_SHOTS`** | `config.js` | New color entries: `BONUS_POINTS: '#E4FF30'` (yellow) and `BONUS_SHOTS: '#00FF9C'` (green) used by the level banner. |
 
 **Before:** Level complete → `shotsRemaining = 5` (flat reset, unused shots only gave bonus points).
 **After:** Level complete → `shotsRemaining += 6` (unused shots carry forward *and* still give bonus points).
