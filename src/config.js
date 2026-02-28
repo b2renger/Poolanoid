@@ -23,6 +23,7 @@ export const CONFIG = {
         FPS_COLOR: '#0f0',
         BONUS_POINTS: '#E4FF30',
         BONUS_SHOTS: '#00FF9C',
+        ROBUST_BLOCKED: '#2E7D32',
     },
 
     // Physics Engine
@@ -116,6 +117,7 @@ export const CONFIG = {
         extraBounce: { color: 0xFF5FCF, restitution: 0.82, friction: 0.02 },
         sticky:      { color: 0xFFAA00, restitution: 0.82, friction: 0.02 },
         lowBounce:   { color: 0xE4FF30, restitution: 0.82, friction: 0.02 },
+        robust:      { color: 0x2E7D32, restitution: 0.82, friction: 0.02 },
     },
 
     // Power-up walls (trigger effect when destroyed)
@@ -146,6 +148,7 @@ export const CONFIG = {
     //     extraBounce — ball speed ×1.25 on hit
     //     lowBounce   — ball speed ×0.25 on hit
     //     sticky      — stops the ball completely on hit
+    //     robust      — requires 2 hits to destroy (introduced level 8+)
     //   Power-up walls (not scored, see POWERUPS for colors):
     //     extraShot   — grants +1 shot
     //     bomb        — destroys nearby walls in radius
@@ -156,7 +159,7 @@ export const CONFIG = {
             maxLevel: 2,  // Levels 1–2: introductory, behavior walls only
             types: [
                 { threshold: 0.15, type: 'extraBounce' },  // 10%
-                { threshold: 0.30, type: 'lowBounce' }, 
+                { threshold: 0.30, type: 'lowBounce' },   
                 { threshold: 1.00, type: 'normal' },       // 80%
             ]
         },
@@ -182,7 +185,7 @@ export const CONFIG = {
             ]
         },
         {
-            maxLevel: Infinity,  // Levels 7+: full variety, fewer normals
+            maxLevel: 7,  // Level 7: full variety, fewer normals
             types: [
                 { threshold: 0.25, type: 'extraBounce' },  // 12%
                 { threshold: 0.50, type: 'lowBounce' },    // 12%
@@ -191,6 +194,19 @@ export const CONFIG = {
                 { threshold: 0.59, type: 'bomb' },         //  6%
                 { threshold: 0.62, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
+            ]
+        },
+        {
+            maxLevel: Infinity,  // Levels 8+: introduce robust walls
+            types: [
+                { threshold: 0.25, type: 'extraBounce' },  // 20%
+                { threshold: 0.50, type: 'lowBounce' },    // 15%
+                { threshold: 0.55, type: 'sticky' },       //  5%
+                { threshold: 0.57, type: 'extraShot' },    //  4%
+                { threshold: 0.59, type: 'bomb' },         //  4%
+                { threshold: 0.62, type: 'multiBall' },    //  4%
+                { threshold: 0.77, type: 'robust' },       // 15%
+                { threshold: 1.00, type: 'normal' },       // 33%
             ]
         },
     ],
@@ -202,6 +218,7 @@ export const CONFIG = {
             extraBounce: 1,
             lowBounce: 2,
             sticky: 4,
+            robust: 3,
         },
     },
 

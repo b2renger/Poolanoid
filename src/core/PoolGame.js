@@ -121,6 +121,11 @@ export class PoolGame {
         this.wallManager.onAllCleared = () => this.nextLevel();
         this.wallManager.onCountChanged = () => this.updateHUD();
         this.wallManager.onPowerUp = (type, pos) => this.handlePowerUp(type, pos);
+        this.wallManager.onWallBlocked = (pos, type) => {
+            this.floatingText.spawn('blocked', pos, CONFIG.COLORS.ROBUST_BLOCKED);
+            this.shakeIntensity = CONFIG.SHAKE.BASE_INTENSITY;
+            this.audio.play('wallBreak');
+        };
 
         // Ball collision → wall removal queue + velocity effects + sound
         this.ball.body.addEventListener('collide', (event) => {

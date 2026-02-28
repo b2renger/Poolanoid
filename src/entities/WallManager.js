@@ -34,6 +34,13 @@ export class WallManager {
         if (this.removedBodies.has(otherBody.id)) return;
         const wall = this.walls.find(w => w.body === otherBody);
         if (wall && !wall.removing) {
+            if (wall.hitsRemaining > 1) {
+                wall.hitsRemaining--;
+                wall.mesh.material.opacity = 0.6;
+                wall.mesh.material.transparent = true;
+                if (this.onWallBlocked) this.onWallBlocked(impactPos, wall.type);
+                return;
+            }
             wall.removing = true;
             this.wallRemovalQueue.push({ wall, impactPos });
         }
@@ -163,7 +170,7 @@ export class WallManager {
             body.wallType = type;
             this.physics.addBody(body);
 
-            const wall = { mesh, body, type, isPowerUp };
+            const wall = { mesh, body, type, isPowerUp, hitsRemaining: type === 'robust' ? 2 : 1 };
             this.walls.push(wall);
             if (isSpecial) this.powerupWalls.push(wall);
         }

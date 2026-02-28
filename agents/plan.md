@@ -1534,9 +1534,37 @@ Reworked the shot economy so unused shots reward skillful play across levels ins
 **Before:** Level complete → `shotsRemaining = 5` (flat reset, unused shots only gave bonus points).
 **After:** Level complete → `shotsRemaining += 6` (unused shots carry forward *and* still give bonus points).
 
+### Robust wall (2-hit wall)
+
+New behavior wall type introduced from level 8 onward. Requires 2 hits to destroy, rewarding +3 points. Provides a tougher obstacle that forces the player to plan shots more carefully.
+
+| Property | Value |
+|----------|-------|
+| **Color** | `0x2E7D32` (dark green) |
+| **Restitution** | 0.82 (normal bounce) |
+| **Points** | +3 |
+| **Hits to destroy** | 2 |
+| **Spawn rate** | 15% at levels 8+ |
+
+#### Mechanic
+
+- **First hit:** Wall survives, becomes semi-transparent (opacity 0.6). Floating text "blocked" appears in dark green. Camera shakes. Wall break sound plays.
+- **Second hit:** Wall destroyed normally with +3 floating text, particles, and scoring.
+- **Bomb interaction:** Bombs destroy robust walls outright (bypass hit count) since `_triggerBomb()` calls `_detachWall()` directly, skipping `queueRemoval()`.
+
+| Change | File | Detail |
+|--------|------|--------|
+| **`WALL_BEHAVIORS.robust`** | `config.js` | `{ color: 0x2E7D32, restitution: 0.82, friction: 0.02 }` |
+| **`SCORING.POINTS.robust`** | `config.js` | `3` points per wall |
+| **`COLORS.ROBUST_BLOCKED`** | `config.js` | `'#2E7D32'` for "blocked" floating text |
+| **New spawn tier (levels 8+)** | `config.js` | Split previous `maxLevel: Infinity` tier at level 7. New tier adds 15% robust walls (normal drops to 33%). |
+| **`hitsRemaining` on wall objects** | `WallManager.js` | Each wall gets `hitsRemaining: type === 'robust' ? 2 : 1` at creation. |
+| **`queueRemoval()` hit check** | `WallManager.js` | If `hitsRemaining > 1`, decrements hits, sets opacity to 0.6, calls `onWallBlocked` callback, and returns without queuing removal. |
+| **`onWallBlocked` callback** | `PoolGame.js` | Spawns "blocked" floating text, triggers camera shake, plays wall break sound. |
+
 ---
 
-**Document Version:** 1.4
+**Document Version:** 1.5
 **Last Updated:** 2026-02-28
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅
