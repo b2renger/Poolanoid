@@ -1447,14 +1447,14 @@ Extended the pulsating emissive glow (previously powerup-only) to **all non-norm
 - `isSpecial = isPowerUp || type !== 'normal'` gates emissive material + glow tracking
 - Removal cleanup updated to match
 
-### Play field resized to 9×6
+### Play field resized to 10×10
 
 | Dimension | Before | After |
 |-----------|--------|-------|
-| `TABLE_WIDTH` | 10 | 9 |
-| `TABLE_DEPTH` | 5 | 6 |
-| `WALL_SPAWN_WIDTH` | 8 | 7 |
-| `WALL_SPAWN_DEPTH` | 3 | 4 |
+| `TABLE_WIDTH` | 10 | 10 |
+| `TABLE_DEPTH` | 5 | 10 |
+| `WALL_SPAWN_WIDTH` | 8 | 8 |
+| `WALL_SPAWN_DEPTH` | 3 | 8 |
 
 Both the Three.js mesh and CANNON body read from config, so the change propagates to visuals and physics automatically.
 
@@ -1567,7 +1567,7 @@ New behavior wall type introduced from level 8 onward. Requires 2 hits to destro
 ## Phase 6: Gameplay Refinements & Visual Polish
 
 **Priority:** HIGH — Progression balance and visual clarity
-**Status:** IN PROGRESS
+**Status:** COMPLETED ✅
 
 ### Objectives
 - Improve level progression by capping bomb count and scaling bomb size
@@ -1616,18 +1616,41 @@ The following should NOT pulse:
 
 Modify wall creation to only add pulsing walls to `powerupWalls` array, and set emissive properties to 0 for non-pulsing special walls.
 
-### Task 6.6: Update Wall Colors
+### Task 6.6: Update Wall Colors ✅
 
 **Files:** `config.js`
 
 | Wall Type | Old Color | New Color | Description |
 |-----------|-----------|-----------|-------------|
-| `multiBall` | `0x00BFFF` (sky blue) | `0xBF00FF` (vivid purple) | More distinct from extraShot cyan |
-| `extraBounce` | `0xFF5FCF` (magenta) | `0xFFB6C1` (light pink) | Softer, clearly distinct |
+| `multiBall` | `0x00BFFF` (sky blue) | `#cf47fc` (vivid purple) | More distinct from extraShot cyan |
+| `extraBounce` | `0xFF5FCF` (magenta) | `#fd81bb` (light pink) | Softer, clearly distinct |
+
+### Task 6.7: Floating Text Colors Match Wall Colors ✅
+
+**Files:** `PoolGame.js`
+
+All floating text now uses the wall's own color directly from config:
+- **Score text** (`+1`, `+2`, `+3`): uses `CONFIG.WALL_BEHAVIORS[type].color`
+- **Power-up text** (`BOOM!`, `Multi-Ball!`, `+1 Shot!`): uses `CONFIG.POWERUPS[type].color`
+- **Blocked text**: uses `CONFIG.WALL_BEHAVIORS[type].color` (was hardcoded `ROBUST_BLOCKED`)
+
+Also fixed broken `toString(16)` color conversion — colors are now CSS strings, used directly.
+
+### Task 6.8: Table Resized to 10×10 ✅
+
+**Files:** `config.js`
+
+| Dimension | Before | After |
+|-----------|--------|-------|
+| `TABLE_DEPTH` | 7 | 10 |
+| `WALL_SPAWN_WIDTH` | 7 | 8 |
+| `WALL_SPAWN_DEPTH` | 4 | 8 |
+
+Square play field with expanded wall spawn area (1-unit margin from edges).
 
 ---
 
-**Document Version:** 1.6
+**Document Version:** 1.7
 **Last Updated:** 2026-03-03
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

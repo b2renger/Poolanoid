@@ -122,7 +122,7 @@ export class PoolGame {
         this.wallManager.onCountChanged = () => this.updateHUD();
         this.wallManager.onPowerUp = (type, pos) => this.handlePowerUp(type, pos);
         this.wallManager.onWallBlocked = (pos, type) => {
-            this.floatingText.spawn('blocked', pos, CONFIG.COLORS.ROBUST_BLOCKED);
+            this.floatingText.spawn('blocked', pos, CONFIG.WALL_BEHAVIORS[type].color);
             this.shakeIntensity = CONFIG.SHAKE.BASE_INTENSITY;
             this.audio.play('wallBreak');
         };
@@ -429,8 +429,7 @@ export class PoolGame {
 
     handlePowerUp(type, position) {
         const def = CONFIG.POWERUPS[type];
-        const colorHex = '#' + def.color.toString(16).padStart(6, '0');
-        this.floatingText.spawn(def.label, position, colorHex);
+        this.floatingText.spawn(def.label, position, def.color);
         this.audio.play('wallBreak');
 
         switch (type) {
@@ -480,9 +479,7 @@ export class PoolGame {
         }
 
         // Color-coded floating text
-        const behavior = CONFIG.WALL_BEHAVIORS[type];
-        const colorHex = '#' + behavior.color.toString(16).padStart(6, '0');
-        this.floatingText.spawn(`+${points}`, position, colorHex);
+        this.floatingText.spawn(`+${points}`, position, CONFIG.WALL_BEHAVIORS[type].color);
 
         // Screen shake (intensity scales with combo)
         const S = CONFIG.SHAKE;
