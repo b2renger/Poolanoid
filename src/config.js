@@ -3,19 +3,21 @@ export const CONFIG = {
     GAME: {
         BASE_WALL_COUNT: 10,
         WALLS_PER_LEVEL: 5,
-        BASE_SHOTS: 5
+        BASE_SHOTS: 5,
+        MAX_BOMBS_PER_LEVEL: 4,
+        BOMB_SIZE_CHANGE_LEVEL: 10,
     },
 
     // Colors (hex numbers for Three.js, strings for CSS)
     COLORS: {
-        BACKGROUND: 0x362F4F,
+        BACKGROUND: #362F4F,
         BACKGROUND_CSS: '#362F4F',
-        TABLE: 0x008BFF,
-        BALL: 0xFFD700,
-        AIM_LINE: 0xE4FF30,
+        TABLE: #008BFF,
+        BALL: #FFD700,
+        AIM_LINE: #E4FF30,
         UI_TEXT: '#E4FF30',
-        BALL_AIM_MAX: 0xFF2200,
-        IMPACT_RING: 0x008BFF,
+        BALL_AIM_MAX: #FF2200,
+        IMPACT_RING: #008BFF,
         GAME_OVER_BG: 'rgba(54, 47, 79, 0.92)',
         BUTTON_PRIMARY: '#008BFF',
         BUTTON_HOVER: '#FF5FCF',
@@ -58,6 +60,8 @@ export const CONFIG = {
 
         WALL_MIN_LENGTH: 2,
         WALL_MAX_LENGTH: 5,
+        BOMB_MIN_LENGTH_LATE: 1,
+        BOMB_MAX_LENGTH_LATE: 3,
         WALL_HEIGHT: 0.5,
         WALL_THICKNESS: 0.025,
 
@@ -90,9 +94,7 @@ export const CONFIG = {
         TOUCH_HIT_RADIUS: 0.8,
         MOUSE_HIT_RADIUS: 0.15,
         AIM_LINE_MIN_LENGTH: 1,
-        AIM_LINE_MAX_LENGTH: 4,
-        AIM_LINE_FADE_LEVEL: 10,
-        AIM_LINE_MIN_SCALE: 0.15,
+        AIM_LINE_MAX_LENGTH: 3,
     },
 
     // Visual Effects
@@ -113,18 +115,18 @@ export const CONFIG = {
 
     // Wall behavior types (velocity effects applied in code; restitution uniform)
     WALL_BEHAVIORS: {
-        normal:      { color: 0x00FF9C, restitution: 0.82, friction: 0.02 },
-        extraBounce: { color: 0xFF5FCF, restitution: 0.82, friction: 0.02 },
-        sticky:      { color: 0xFFAA00, restitution: 0.82, friction: 0.02 },
-        lowBounce:   { color: 0xE4FF30, restitution: 0.82, friction: 0.02 },
-        robust:      { color: 0x2E7D32, restitution: 0.82, friction: 0.02 },
+        normal:      { color: #00ff2f, restitution: 0.82, friction: 0.02 },
+        extraBounce: { color: #ff3492, restitution: 0.82, friction: 0.02 },
+        sticky:      { color: #FFAA00, restitution: 0.82, friction: 0.02 },
+        lowBounce:   { color: #E4FF30, restitution: 0.82, friction: 0.02 },
+        robust:      { color: #24922a, restitution: 0.82, friction: 0.02 },
     },
 
     // Power-up walls (trigger effect when destroyed)
     POWERUPS: {
-        extraShot: { color: 0x00FFFF, label: '+1 Shot!', shots: 1 },
-        bomb:      { color: 0xFF0000, label: 'BOOOOM!', radius: 1.5 },
-        multiBall: { color: 0x00BFFF, label: 'Multi-Ball !!', count: 2 },
+        extraShot: { color: #00FFFF, label: '+1 Shot!', shots: 1 },
+        bomb:      { color: #FF0000, label: 'BOOM!', radius: 1.5 },
+        multiBall: { color: #BF00FF, label: 'Multi-Ball!', count: 2 },
     },
 
     // Level-scaled wall spawn rates

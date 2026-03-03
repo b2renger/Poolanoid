@@ -36,8 +36,11 @@ export class WallManager {
         if (wall && !wall.removing) {
             if (wall.hitsRemaining > 1) {
                 wall.hitsRemaining--;
-                wall.mesh.material.opacity = 0.6;
-                wall.mesh.material.transparent = true;
+                // Turn robust wall to normal wall color after first hit
+                const normalColor = CONFIG.WALL_BEHAVIORS.normal.color;
+                wall.mesh.material.color.setHex(normalColor);
+                wall.mesh.material.emissive.setHex(0x000000);
+                wall.mesh.material.emissiveIntensity = 0;
                 if (this.onWallBlocked) this.onWallBlocked(impactPos, wall.type);
                 return;
             }
@@ -94,12 +97,15 @@ export class WallManager {
         this.wallContactMaterials = [];
         this.powerupWalls = [];
 
-        const { WALL_MIN_LENGTH, WALL_MAX_LENGTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH, BALL_SPAWN_CLEARANCE } = CONFIG.DIMENSIONS;
+        const { WALL_MIN_LENGTH, WALL_MAX_LENGTH, WALL_HEIGHT, WALL_THICKNESS, WALL_SPAWN_WIDTH, WALL_SPAWN_DEPTH, BALL_SPAWN_CLEARANCE, BOMB_MIN_LENGTH_LATE, BOMB_MAX_LENGTH_LATE } = CONFIG.DIMENSIONS;
         const wallCount = CONFIG.GAME.BASE_WALL_COUNT + (level - 1) * CONFIG.GAME.WALLS_PER_LEVEL;
         const spawnRates = this._getSpawnRates(level);
         const clearanceSq = BALL_SPAWN_CLEARANCE * BALL_SPAWN_CLEARANCE;
         const ballX = ballPosition ? ballPosition.x : 0;
         const ballZ = ballPosition ? ballPosition.z : 0;
+        const maxBombs = CONFIG.GAME.MAX_BOMBS_PER_LEVEL;
+        const useSmallerBombs = level >= CONFIG.GAME.BOMB_SIZE_CHANGE_LEVEL;
+        let bombCount = 0;
 
         // Create one CANNON.Material + ContactMaterial per behavior type
         const behaviorMaterials = {};
@@ -139,19 +145,33 @@ export class WallManager {
 
             const roll = Math.random();
             const wallDef = spawnRates.find(wt => roll < wt.threshold);
-            const type = wallDef.type;
+            let type = wallDef.type;
+
+            // Hard cap: at most MAX_BOMBS_PER_LEVEL bombs per level
+            if (type === 'bomb' && bombCount >= maxBombs) {
+                type = 'normal';
+            }
+            if (type === 'bomb') bombCount++;
+
             const isPowerUp = this._isPowerUp(type);
             const behavior = this._getBehavior(type);
             const color = isPowerUp ? CONFIG.POWERUPS[type].color : CONFIG.WALL_BEHAVIORS[type].color;
 
+            // Bomb walls get smaller dimensions after BOMB_SIZE_CHANGE_LEVEL
+            if (type === 'bomb' && useSmallerBombs) {
+                wallLength = BOMB_MIN_LENGTH_LATE + Math.random() * (BOMB_MAX_LENGTH_LATE - BOMB_MIN_LENGTH_LATE);
+            }
+
+            // Only power-ups and extraBounce should pulse
+            const shouldPulse = isPowerUp || type === 'extraBounce';
+
             // Visual
             const geometry = new THREE.BoxGeometry(wallLength, WALL_HEIGHT, WALL_THICKNESS);
-            const isSpecial = isPowerUp || type !== 'normal';
             const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
                 color,
                 shininess: CONFIG.MATERIALS.WALL_SHININESS,
-                emissive: isSpecial ? color : 0x000000,
-                emissiveIntensity: isSpecial ? (type === 'bomb' ? 0.7 : 0.5) : 0
+                emissive: shouldPulse ? color : 0x000000,
+                emissiveIntensity: shouldPulse ? (type === 'bomb' ? 0.7 : 0.5) : 0
             }));
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -172,7 +192,7 @@ export class WallManager {
 
             const wall = { mesh, body, type, isPowerUp, hitsRemaining: type === 'robust' ? 2 : 1 };
             this.walls.push(wall);
-            if (isSpecial) this.powerupWalls.push(wall);
+            if (shouldPulse) this.powerupWalls.push(wall);
         }
     }
 
@@ -183,10 +203,8 @@ export class WallManager {
         this.physics.removeBody(wall.body);
         const idx = this.walls.indexOf(wall);
         if (idx > -1) this.walls.splice(idx, 1);
-        if (wall.isPowerUp || wall.type !== 'normal') {
-            const pIdx = this.powerupWalls.indexOf(wall);
-            if (pIdx > -1) this.powerupWalls.splice(pIdx, 1);
-        }
+        const pIdx = this.powerupWalls.indexOf(wall);
+        if (pIdx > -1) this.powerupWalls.splice(pIdx, 1);
         return true;
     }
 

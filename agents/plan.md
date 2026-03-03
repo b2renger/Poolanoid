@@ -1564,7 +1564,70 @@ New behavior wall type introduced from level 8 onward. Requires 2 hits to destro
 
 ---
 
-**Document Version:** 1.5
-**Last Updated:** 2026-02-28
+## Phase 6: Gameplay Refinements & Visual Polish
+
+**Priority:** HIGH — Progression balance and visual clarity
+**Status:** IN PROGRESS
+
+### Objectives
+- Improve level progression by capping bomb count and scaling bomb size
+- Fix aiming line to remain constant throughout the game
+- Improve visual clarity by restricting pulsing to true power-ups only
+- Update wall colors for better distinction
+
+### Task 6.1: Hard Cap on Bombs (Max 4 Per Level)
+
+**Files:** `WallManager.js`, `config.js`
+
+During wall generation in `createWalls()`, track bomb count. When a wall rolls as `bomb` and the cap is already reached, re-roll as `normal`. Add `MAX_BOMBS_PER_LEVEL: 4` to `CONFIG.GAME`.
+
+### Task 6.2: Smaller Bomb Walls After Level 10
+
+**Files:** `WallManager.js`, `config.js`
+
+After level 10, bomb walls use reduced dimensions: min length 1, max length 3 (down from 2–5). Add `BOMB_MIN_LENGTH_LATE: 1` and `BOMB_MAX_LENGTH_LATE: 3` to `CONFIG.DIMENSIONS`, with `BOMB_SIZE_CHANGE_LEVEL: 10` in `CONFIG.GAME`.
+
+### Task 6.3: Constant Aiming Line Length (3 Units)
+
+**Files:** `config.js`, `PoolGame.js`
+
+Set `AIM_LINE_MAX_LENGTH: 3` and modify `updateAimLineScale()` to always set `aimLineScale = 1` (no diminishing over levels).
+
+### Task 6.4: Robust Wall Turns Normal Color After First Hit
+
+**Files:** `WallManager.js`
+
+In `queueRemoval()`, when a robust wall survives its first hit, change its material color and emissive to the normal wall color (`0x00FF9C`) instead of just reducing opacity. This provides clearer visual feedback that it's now one hit away from destruction.
+
+### Task 6.5: Restrict Pulsing to Power-Ups Only
+
+**Files:** `WallManager.js`
+
+Only the following wall types should pulse (glow animation):
+- `extraBounce` (light pink)
+- `extraShot` (+1 shot)
+- `multiBall` (vivid purple)
+- `bomb` (red)
+
+The following should NOT pulse:
+- `lowBounce`
+- `sticky`
+- `robust`
+
+Modify wall creation to only add pulsing walls to `powerupWalls` array, and set emissive properties to 0 for non-pulsing special walls.
+
+### Task 6.6: Update Wall Colors
+
+**Files:** `config.js`
+
+| Wall Type | Old Color | New Color | Description |
+|-----------|-----------|-----------|-------------|
+| `multiBall` | `0x00BFFF` (sky blue) | `0xBF00FF` (vivid purple) | More distinct from extraShot cyan |
+| `extraBounce` | `0xFF5FCF` (magenta) | `0xFFB6C1` (light pink) | Softer, clearly distinct |
+
+---
+
+**Document Version:** 1.6
+**Last Updated:** 2026-03-03
 **Author:** AI Assistant (Claude)
 **Status:** Ready for Review ✅

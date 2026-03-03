@@ -279,9 +279,7 @@ export class PoolGame {
     }
 
     updateAimLineScale() {
-        const fade = CONFIG.AIMING.AIM_LINE_FADE_LEVEL;
-        const minScale = CONFIG.AIMING.AIM_LINE_MIN_SCALE;
-        this.input.aimLineScale = Math.max(minScale, 1 - (this.level - 1) / (fade - 1));
+        this.input.aimLineScale = 1;
     }
 
     onShoot(direction, magnitude) {
