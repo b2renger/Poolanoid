@@ -41,7 +41,7 @@ export const CONFIG = {
         DEFAULT_RESTITUTION: 0.35,
 
         BALL_MASS: 1,
-        BALL_LINEAR_DAMPING: 0.83,
+        BALL_LINEAR_DAMPING: 0.85,
         BALL_SLEEP_SPEED_LIMIT: 0.1,
         BALL_SLEEP_TIME_LIMIT: 0.5,
 
@@ -56,7 +56,7 @@ export const CONFIG = {
     DIMENSIONS: {
         TABLE_WIDTH: 10,
         TABLE_HEIGHT: 0.21,
-        TABLE_DEPTH: 10,
+        TABLE_DEPTH: 7,
 
         WALL_MIN_LENGTH: 2,
         WALL_MAX_LENGTH: 5,
@@ -71,7 +71,7 @@ export const CONFIG = {
         BOUNDARY_WALL_THICKNESS: 0.15,
 
         WALL_SPAWN_WIDTH: 8,
-        WALL_SPAWN_DEPTH: 8,
+        WALL_SPAWN_DEPTH: 5,
         BALL_SPAWN_CLEARANCE: 0.5
     },
 
@@ -194,7 +194,7 @@ export const CONFIG = {
                 { threshold: 0.55, type: 'sticky' },       //  8%
                 { threshold: 0.57, type: 'extraShot' },    //  6%
                 { threshold: 0.59, type: 'bomb' },         //  6%
-                { threshold: 0.62, type: 'multiBall' },    //  4%
+                { threshold: 0.63, type: 'multiBall' },    //  4%
                 { threshold: 1.00, type: 'normal' },       // 52%
             ]
         },
