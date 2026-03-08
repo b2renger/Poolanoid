@@ -250,7 +250,6 @@ export class WallManager {
         }
 
         if (this.onCountChanged) this.onCountChanged();
-        if (this.walls.length === 0 && this.onAllCleared) this.onAllCleared();
     }
 
     /** Compute the XZ axis-aligned half-extents for a rotated box body. */
@@ -281,7 +280,6 @@ export class WallManager {
 
         // Update count once for all detached walls
         if (victims.length > 0 && this.onCountChanged) this.onCountChanged();
-        if (this.walls.length === 0 && this.onAllCleared) this.onAllCleared();
 
         // Stagger visual effects across frames (~50ms apart)
         victims.forEach((wall, i) => {

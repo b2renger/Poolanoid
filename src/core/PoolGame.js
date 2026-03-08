@@ -41,6 +41,7 @@ export class PoolGame {
         this.slowMoUntil = 0;
         this.levelZoomStart = 0;
         this.pendingStickyStop = false;
+        this.levelTransitioning = false;
 
         // Renderer
         this.scene = new THREE.Scene();
@@ -209,6 +210,7 @@ export class PoolGame {
         this.physics.timeScale = 1;
         this.isGameOver = false;
         this.isPlaying = true;
+        this.levelTransitioning = false;
         this.ball.reset();
         this.clearExtraBalls();
         this.effects.clear();
@@ -322,6 +324,18 @@ export class PoolGame {
                 this.particles.update(1 / 60);
                 this.wallManager.updatePowerupGlow(time);
 
+                        // Deferred next-level: wait for ball + extra balls to settle after clearing all walls
+                if (!this.isGameOver && !this.levelTransitioning
+                    && this.wallManager.count === 0
+                    && this.extraBalls.length === 0) {
+                    const vel = this.ball.body.velocity;
+                    const speedSq = vel.x * vel.x + vel.z * vel.z;
+                    const limit = CONFIG.PHYSICS.BALL_SLEEP_SPEED_LIMIT;
+                    if (speedSq < limit * limit) {
+                        this.nextLevel();
+                    }
+                }
+
                 // Deferred game-over: wait for ball + extra balls to settle
                 if (!this.isGameOver && this.shotsRemaining <= 0
                     && this.wallManager.count > 0
@@ -382,6 +396,7 @@ export class PoolGame {
     }
 
     nextLevel() {
+        this.levelTransitioning = true;
         // Bonus points for unused shots
         const remaining = this.shotsRemaining;
         const shotBonus = remaining * 10;
@@ -405,6 +420,7 @@ export class PoolGame {
             this.wallManager.createWalls(this.level, this.ball.body.material, this.ball.body.position);
             this.updateAimLineScale();
             this.updateHUD();
+            this.levelTransitioning = false;
         }, CONFIG.EFFECTS.NEXT_LEVEL_DELAY);
     }
 
